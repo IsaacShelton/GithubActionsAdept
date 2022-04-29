@@ -1,0 +1,144 @@
+name: Remote Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  BUILD_TYPE: Release
+  CTEST_OUTPUT_ON_FAILURE: On
+  IS_GITHUB_WORKFLOW: On
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    defaults:
+      run:
+        working-directory: ${{github.workspace}}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get latest CMake and Ninja
+        uses: lukka/get-cmake@latest
+      - name: Configure
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -G Ninja
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      - name: Archive Build Result
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: c
+          files: build
+          outPath: build-${{ matrix.os }}.tar.gz
+      - name: Archive E2E Infrastructure
+        uses: a7ul/tar-action@v1.1.0
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          command: c
+          cwd: tests
+          files: e2e
+          outPath: e2e.tar.gz
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-${{ matrix.os }}-archive
+          path: build-${{ matrix.os }}.tar.gz
+      - name: Upload E2E Testing Infrastructure Artifact
+        uses: actions/upload-artifact@v2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          name: e2e-archive
+          path: e2e.tar.gz
+  test:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v3.1.2
+        with:
+          python-version: '3.x' 
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: build-${{ matrix.os }}-archive
+      - name: Download E2E Testing Infrastructure Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: e2e-archive
+      - name: Unpack 1/2
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: x
+          files: e2e.tar.gz
+      - name: Unpack 2/2
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: x
+          files: build-${{ matrix.os }}.tar.gz
+      - name: Unit Test
+        working-directory: build
+        run: ctest -C ${{env.BUILD_TYPE}}
+      - name: E2E Test
+        working-directory: ${{github.workspace}}/e2e
+        run: python3 e2e-runner.py ../build/HelloWorld
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Build Artifact (windows-latest)
+        uses: actions/download-artifact@v2
+        with:
+          name: build-windows-latest-archive
+      - name: Download Build Artifact (macos-latest)
+        uses: actions/download-artifact@v2
+        with:
+          name: build-macos-latest-archive
+      - name: Download Build Artifact (ubuntu-latest)
+        uses: actions/download-artifact@v2
+        with:
+          name: build-ubuntu-latest-archive
+      - name: Pre-Unpack
+        run: mkdir windows-latest macos-latest ubuntu-latest
+      - name: Unpack Windows Build
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: x
+          cwd: windows-latest
+          files: build-windows-latest.tar.gz
+      - name: Unpack macOS Build
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: x
+          cwd: macos-latest
+          files: build-macos-latest.tar.gz
+      - name: Unpack Ubuntu Build
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: x
+          cwd: ubuntu-latest
+          files: build-ubuntu-latest.tar.gz
+      - name: Stage
+        run: |
+          mkdir stage
+          mv windows-latest/build/HelloWorld.exe stage/x86_64-Windows-HelloWorld.exe
+          mv macos-latest/build/HelloWorld stage/arm64-MacOS-HelloWorld
+          mv ubuntu-latest/build/HelloWorld stage/x86_64-Ubuntu-HelloWorld
+      - name: Release
+        uses: IsaacShelton/update-existing-release@v1.2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          release: Nightly
+          replace: true
+          files: >
+            stage/x86_64-Windows-HelloWorld.exe
+            stage/arm64-MacOS-HelloWorld
+            stage/x86_64-Ubuntu-HelloWorld
