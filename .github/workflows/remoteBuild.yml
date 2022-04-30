@@ -127,7 +127,7 @@ jobs:
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept 9.9.9
       - name: Inspect installer
-      - run: |
+        run: |
         ls -la macOS-installer-builder/build
         mkdir -p expandable
         pkgutil --expand macOS-installer-builder/build/Adept-9.9.9-installer.pkg expandable
