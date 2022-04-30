@@ -90,7 +90,7 @@ jobs:
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
         run: python3 e2e-runner.py ../build/HelloWorld
-  package-macos-latest:
+  build-macos-installer:
     needs: test
     runs-on: macos-latest
     steps:
@@ -126,8 +126,13 @@ jobs:
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept nightly
+      - name: Upload Installer Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: macos-installer
+          path: build/Adept-nightly-installer.pkg
   deploy:
-    needs: [test, package-macos-latest]
+    needs: [test, build-macos-installer]
     runs-on: ubuntu-latest
     steps:
       - name: Download Build Artifact (windows-latest)
@@ -142,6 +147,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: build-ubuntu-latest-archive
+      - name: Download macOS Installer Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: macos-installer
       - name: Pre-Unpack
         run: mkdir windows-latest macos-latest ubuntu-latest
       - name: Unpack Windows Build
@@ -168,6 +177,7 @@ jobs:
           mv windows-latest/build/HelloWorld.exe stage/x86_64-Windows-HelloWorld.exe
           mv macos-latest/build/HelloWorld stage/arm64-MacOS-HelloWorld
           mv ubuntu-latest/build/HelloWorld stage/x86_64-Ubuntu-HelloWorld
+          mv Adept-nightly-installer.pkg stage/Adept-nightly-installer.pkg
       - name: Release
         uses: IsaacShelton/update-existing-release@v1.2.0
         with:
@@ -178,3 +188,4 @@ jobs:
             stage/x86_64-Windows-HelloWorld.exe
             stage/arm64-MacOS-HelloWorld
             stage/x86_64-Ubuntu-HelloWorld
+            stage/Adept-nightly-installer.pkg
