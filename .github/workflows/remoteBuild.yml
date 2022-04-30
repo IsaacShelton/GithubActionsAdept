@@ -138,7 +138,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: macos-installer
-          path: macOS-installer-builder/build/Adept-9.9.9-installer.tar.gz
+          path: Adept-9.9.9-installer.tar.gz
   deploy:
     needs: [test, build-macos-installer]
     runs-on: ubuntu-latest
