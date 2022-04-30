@@ -110,12 +110,19 @@ jobs:
       - name: Checkout macOS Installer Builder
         uses: actions/checkout@v3
         with:
-          # Repository name with owner. For example, actions/checkout
-          # Default: ${{ github.repository }}
           repository: 'IsaacShelton/macOS-installer-builder'
           ref: 'v1.0.0'
-      - name: Show files
-        run: ls -la
+          path: 'macOS-installer-builder'
+      - name: Checkout Adept Standard Library
+        uses: actions/checkout@v3
+        with:
+          repository: 'AdeptLanguage/AdeptImport'
+          path: 'AdeptImport'
+      - name: Checkout Adept Default Configuration
+        uses: actions/checkout@v3
+        with:
+          repository: 'AdeptLanguage/Config'
+          path: 'AdeptConfig'
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept nightly
