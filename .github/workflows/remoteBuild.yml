@@ -114,6 +114,8 @@ jobs:
           # Default: ${{ github.repository }}
           repository: 'IsaacShelton/macOS-installer-builder'
           ref: 'v1.0.0'
+      - name: Show files
+        run: ls -la
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept nightly
