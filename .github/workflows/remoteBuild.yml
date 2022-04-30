@@ -177,7 +177,7 @@ jobs:
           mv windows-latest/build/HelloWorld.exe stage/x86_64-Windows-HelloWorld.exe
           mv macos-latest/build/HelloWorld stage/arm64-MacOS-HelloWorld
           mv ubuntu-latest/build/HelloWorld stage/x86_64-Ubuntu-HelloWorld
-          mv Adept-nightly-installer.pkg stage/Adept-nightly-installer.pkg
+          mv Adept-9.9.9-installer.pkg stage/Adept-9.9.9-installer.pkg
       - name: Release
         uses: IsaacShelton/update-existing-release@v1.2.0
         with:
@@ -188,4 +188,4 @@ jobs:
             stage/x86_64-Windows-HelloWorld.exe
             stage/arm64-MacOS-HelloWorld
             stage/x86_64-Ubuntu-HelloWorld
-            stage/Adept-nightly-installer.pkg
+            stage/Adept-9.9.9-installer.pkg
