@@ -130,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: macos-installer
-          path: macOS-installer-builder/build/Adept-nightly-installer.pkg
+          path: macOS-installer-builder/build/Adept-9.9.9-installer.pkg
   deploy:
     needs: [test, build-macos-installer]
     runs-on: ubuntu-latest
