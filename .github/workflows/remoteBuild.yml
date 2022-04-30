@@ -90,7 +90,7 @@ jobs:
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
         run: python3 e2e-runner.py ../build/HelloWorld
-  package (macos-latest):
+  package-macos-latest:
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -118,7 +118,7 @@ jobs:
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept nightly
   deploy:
-    needs: ['test', 'package (macos-latest)']
+    needs: [test, package-macos-latest]
     runs-on: ubuntu-latest
     steps:
       - name: Download Build Artifact (windows-latest)
