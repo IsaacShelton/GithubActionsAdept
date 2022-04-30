@@ -131,7 +131,7 @@ jobs:
         uses: a7ul/tar-action@v1.1.0
         with:
           command: c
-          cwd: tests
+          cwd: macOS-installer-builder/build
           files: Adept-9.9.9-installer.pkg
           outPath: Adept-9.9.9-installer.tar.gz
       - name: Upload Installer Archive Artifact
