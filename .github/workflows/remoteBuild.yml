@@ -127,11 +127,18 @@ jobs:
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept 9.9.9
       - run: ls -la macOS-installer-builder/build && pkgutil --expand macOS-installer-builder/build/Adept-9.9.9-installer.pkg expandable && ls -la expandable
-      - name: Upload Installer Artifact
+      - name: Archive Installer
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: c
+          cwd: tests
+          files: Adept-9.9.9-installer.pkg
+          outPath: Adept-9.9.9-installer.tar.gz
+      - name: Upload Installer Archive Artifact
         uses: actions/upload-artifact@v3
         with:
           name: macos-installer
-          path: macOS-installer-builder/build/Adept-9.9.9-installer.pkg
+          path: macOS-installer-builder/build/Adept-9.9.9-installer.tar.gz
   deploy:
     needs: [test, build-macos-installer]
     runs-on: ubuntu-latest
@@ -172,6 +179,11 @@ jobs:
           command: x
           cwd: ubuntu-latest
           files: build-ubuntu-latest.tar.gz
+      - name: Unpack macOS Installer
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: x
+          files: Adept-9.9.9-installer.tar.gz
       - name: Stage
         run: |
           mkdir stage
