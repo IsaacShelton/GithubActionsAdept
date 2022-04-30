@@ -90,8 +90,35 @@ jobs:
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
         run: python3 e2e-runner.py ../build/HelloWorld
-  deploy:
+  package (macos-latest):
     needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v3.1.2
+        with:
+          python-version: '3.x' 
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: build-macos-latest-archive
+      - name: Unpack
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: x
+          files: build-macos-latest.tar.gz
+      - name: Checkout macOS Installer Builder
+        uses: actions/checkout@v3
+        with:
+          # Repository name with owner. For example, actions/checkout
+          # Default: ${{ github.repository }}
+          repository: 'IsaacShelton/macOS-installer-builder'
+          ref: 'v1.0.0'
+      - name: Package as Installer
+        working-directory: ${{github.workspace}}/macOS-installer-builder
+        run: python3 src/build-installer.py Adept nightly
+  deploy:
+    needs: ['test', 'package (macos-latest)']
     runs-on: ubuntu-latest
     steps:
       - name: Download Build Artifact (windows-latest)
