@@ -126,11 +126,7 @@ jobs:
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept 9.9.9
-      - name: Inspect installer
-        run: |
-        ls -la macOS-installer-builder/build
-        mkdir -p expandable
-        pkgutil --expand macOS-installer-builder/build/Adept-9.9.9-installer.pkg expandable
+      - run: ls -la macOS-installer-builder/build && mkdir -p expandable && pkgutil --expand macOS-installer-builder/build/Adept-9.9.9-installer.pkg expandable
       - name: Upload Installer Artifact
         uses: actions/upload-artifact@v2
         with:
