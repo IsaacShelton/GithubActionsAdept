@@ -92,7 +92,7 @@ jobs:
         run: python3 e2e-runner.py ../build/HelloWorld
   package-macos-latest:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - name: Setup Python
         uses: actions/setup-python@v3.1.2
