@@ -193,7 +193,7 @@ jobs:
           mv ubuntu-latest/build/HelloWorld stage/x86_64-Ubuntu-HelloWorld
           mv Adept-9.9.9-installer.pkg stage/Adept-9.9.9-installer.pkg
       - name: Release
-        uses: IsaacShelton/update-existing-release@v1.2.0
+        uses: IsaacShelton/update-existing-release@HEAD
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release: Nightly
