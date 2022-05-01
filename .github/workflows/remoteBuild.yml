@@ -184,6 +184,7 @@ jobs:
         with:
           command: x
           files: Adept-9.9.9-installer.tar.gz
+      - run: ls -lah
       - name: Stage
         run: |
           mkdir stage
