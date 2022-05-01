@@ -125,20 +125,20 @@ jobs:
           path: 'AdeptConfig'
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
-        run: python3 src/build-installer.py Adept 9.9.9
-      - run: ls -la macOS-installer-builder/build && pkgutil --expand macOS-installer-builder/build/Adept-9.9.9-installer.pkg expandable && ls -la expandable
+        run: python3 src/build-installer.py Adept nightly
+      - run: ls -la macOS-installer-builder/build && pkgutil --expand macOS-installer-builder/build/Adept-nightly-installer.pkg expandable && ls -la expandable
       - name: Archive Installer
         uses: a7ul/tar-action@v1.1.0
         with:
           command: c
           cwd: macOS-installer-builder/build
-          files: Adept-9.9.9-installer.pkg
-          outPath: Adept-9.9.9-installer.tar.gz
+          files: Adept-nightly-installer.pkg
+          outPath: Adept-nightly-installer.tar.gz
       - name: Upload Installer Archive Artifact
         uses: actions/upload-artifact@v3
         with:
           name: macos-installer
-          path: Adept-9.9.9-installer.tar.gz
+          path: Adept-nightly-installer.tar.gz
   deploy:
     needs: [test, build-macos-installer]
     runs-on: ubuntu-latest
@@ -183,7 +183,7 @@ jobs:
         uses: a7ul/tar-action@v1.1.0
         with:
           command: x
-          files: Adept-9.9.9-installer.tar.gz
+          files: Adept-nightly-installer.tar.gz
       - run: ls -lah
       - name: Stage
         run: |
@@ -191,9 +191,9 @@ jobs:
           mv windows-latest/build/HelloWorld.exe stage/x86_64-Windows-HelloWorld.exe
           mv macos-latest/build/HelloWorld stage/arm64-MacOS-HelloWorld
           mv ubuntu-latest/build/HelloWorld stage/x86_64-Ubuntu-HelloWorld
-          mv Adept-9.9.9-installer.pkg stage/Adept-9.9.9-installer.pkg
+          mv Adept-nightly-installer.pkg stage/Adept-nightly-installer.pkg
       - name: Release
-        uses: IsaacShelton/update-existing-release@HEAD
+        uses: IsaacShelton/update-existing-release@v1.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release: Nightly
@@ -202,4 +202,4 @@ jobs:
             stage/x86_64-Windows-HelloWorld.exe
             stage/arm64-MacOS-HelloWorld
             stage/x86_64-Ubuntu-HelloWorld
-            stage/Adept-9.9.9-installer.pkg
+            stage/Adept-nightly-installer.pkg
