@@ -139,8 +139,8 @@ jobs:
       - name: Stage Installer Files
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: |
-          sed -i -e s/Adept 2.6/Adept Nightly/g stage/installer/welcome.html
-          sed -i -e s/adept2-6/adept-nightly/g -e s/Adept 2.6/Adept Nightly/g stage/installer/conclusion.html
+          sed -i -e s/Adept\ 2.6/Adept Nightly/g stage/installer/welcome.html
+          sed -i -e s/Adept\ 2.6/Adept Nightly/g -e s/adept2-6/adept-nightly/g stage/installer/conclusion.html
           sed -i -e s/adept2-6/adept-nightly/g -e s/2.6.0/Nightly/g stage/installer/postinstall
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
@@ -193,9 +193,9 @@ jobs:
       - name: Stage
         run: |
           mkdir stage
-          mv windows-latest/build/HelloWorld.exe stage/x86_64-Windows-HelloWorld.exe
-          mv macos-latest/build/HelloWorld stage/arm64-MacOS-HelloWorld
-          mv ubuntu-latest/build/HelloWorld stage/x86_64-Ubuntu-HelloWorld
+          mv windows-latest/build/adept.exe stage/x86_64-Windows-adept.exe
+          mv macos-latest/build/adept stage/arm64-MacOS-adept
+          mv ubuntu-latest/build/adept stage/x86_64-Ubuntu-adept
           mv Adept-nightly-installer.pkg stage/Adept-nightly-installer.pkg
       - name: Release
         uses: IsaacShelton/update-existing-release@v1.2.0
@@ -204,7 +204,7 @@ jobs:
           release: Nightly
           replace: true
           files: >
-            stage/x86_64-Windows-HelloWorld.exe
-            stage/arm64-MacOS-HelloWorld
-            stage/x86_64-Ubuntu-HelloWorld
+            stage/x86_64-Windows-adept.exe
+            stage/arm64-MacOS-adept
+            stage/x86_64-Ubuntu-adept
             stage/Adept-nightly-installer.pkg
