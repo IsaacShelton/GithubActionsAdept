@@ -139,8 +139,8 @@ jobs:
       - name: Stage Installer Files
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: |
-          sed -i -e s/Adept\ 2.6/Adept Nightly/g stage/installer/welcome.html
-          sed -i -e s/Adept\ 2.6/Adept Nightly/g -e s/adept2-6/adept-nightly/g stage/installer/conclusion.html
+          sed -i -e s/Adept\ 2.6/Adept\ Nightly/g stage/installer/welcome.html
+          sed -i -e s/Adept\ 2.6/Adept\ Nightly/g -e s/adept2-6/adept-nightly/g stage/installer/conclusion.html
           sed -i -e s/adept2-6/adept-nightly/g -e s/2.6.0/Nightly/g stage/installer/postinstall
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
