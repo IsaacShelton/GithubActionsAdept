@@ -89,7 +89,7 @@ jobs:
         run: ctest -C ${{env.BUILD_TYPE}}
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
-        run: python3 e2e-runner.py ../build/HelloWorld
+        run: python3 e2e-runner.py ../build/adept
   build-macos-installer:
     needs: test
     runs-on: macos-latest
