@@ -126,7 +126,7 @@ jobs:
       - name: Download Adept Cross Compilation Support
         run: wget -O AdeptCrossCompilation.zip https://github.com/IsaacShelton/AdeptCrossCompilation/releases/download/2.4/AdeptCrossCompilation-MacOS-to-Windows.zip
       - name: Unpack Cross Compilation Support
-        run: AdeptCrossCompilation.zip
+        run: unzip AdeptCrossCompilation.zip
       - name: Stage Application Files
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: |
