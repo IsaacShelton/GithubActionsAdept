@@ -135,7 +135,7 @@ jobs:
           mv ../AdeptImport stage/application/import
           mv ../AdeptCrossCompilation-MacOS-to-Windows/cross-compile-windows stage/application/cross-compile-windows
           mv ../AdeptConfig/adept.config stage/application/adept.config
-          mv ../build/adept stage/application/adept
+          mv ../build-macos-latest/adept stage/application/adept
       - name: Stage Installer Files
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: |
