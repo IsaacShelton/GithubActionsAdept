@@ -126,8 +126,8 @@ jobs:
       - name: Download Adept Cross Compilation Support
         run: curl https://github.com/IsaacShelton/AdeptCrossCompilation/releases/download/2.4/AdeptCrossCompilation-MacOS-to-Windows.zip -o AdeptCrossCompilation.zip
       - name: Unpack Cross Compilation Support
-        run: unzip AdeptCrossCompilation.zip
-      - name: Stage Application
+        run: ls -lah && unzip AdeptCrossCompilation.zip
+      - name: Stage Application Files
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: |
           rm -rf stage/application
@@ -136,6 +136,17 @@ jobs:
           mv ../AdeptCrossCompilation stage/application/cross-
           mv ../AdeptConfig/adept.config stage/application/adept.config
           mv ../build/adept stage/application/adept
+      - name: Stage Installer Files
+        working-directory: ${{github.workspace}}/macOS-installer-builder
+        run: |
+          # welcome.html
+          sed -i '' -e s/Adept 2.6/Adept Nightly/g stage/installer/welcome.html
+          # conclusion.html
+          sed -i '' -e s/adept2-6/adept-nightly/g stage/installer/conclusion.html
+          sed -i '' -e s/Adept 2.6/Adept Nightly/g stage/installer/conclusion.html
+          # postinstall
+          sed -i '' -e s/adept2-6/adept-nightly/g stage/installer/postinstall
+          sed -i '' -e s/2.6.0/Nightly/g stage/installer/postinstall
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept nightly
