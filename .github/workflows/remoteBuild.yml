@@ -123,6 +123,19 @@ jobs:
         with:
           repository: 'AdeptLanguage/Config'
           path: 'AdeptConfig'
+      - name: Download Adept Cross Compilation Support
+        run: curl https://github.com/IsaacShelton/AdeptCrossCompilation/releases/download/2.4/AdeptCrossCompilation-MacOS-to-Windows.zip -o AdeptCrossCompilation.zip
+      - name: Unpack Cross Compilation Support
+        run: unzip AdeptCrossCompilation.zip
+      - name: Stage Application
+        working-directory: ${{github.workspace}}/macOS-installer-builder
+        run: |
+          rm -rf stage/application
+          mkdir -p stage/application
+          mv ../AdeptImport stage/application/import
+          mv ../AdeptCrossCompilation stage/application/cross-
+          mv ../AdeptConfig/adept.config stage/application/adept.config
+          mv ../build/adept stage/application/adept
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: python3 src/build-installer.py Adept nightly
