@@ -133,7 +133,7 @@ jobs:
           rm -rf stage/application
           mkdir -p stage/application
           mv ../AdeptImport stage/application/import
-          mv ../AdeptCrossCompilation stage/application/cross-
+          mv ../AdeptCrossCompilation/cross-compile-windows stage/application/cross-compile-windows
           mv ../AdeptConfig/adept.config stage/application/adept.config
           mv ../build/adept stage/application/adept
       - name: Stage Installer Files
