@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(HelloWorld)
+project(adept)
 
-add_executable(HelloWorld src/main.c)
-target_include_directories(HelloWorld PUBLIC include)
+add_executable(adept src/main.c)
+target_include_directories(adept PUBLIC include)
 
 enable_testing()
 add_subdirectory(tests)
