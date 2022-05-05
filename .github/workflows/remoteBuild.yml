@@ -120,7 +120,7 @@ jobs:
       - name: Download Support Libraries Artifact
         uses: actions/download-artifact@v3
         with:
-          name: windows-necessities
+          name: res
       - name: Download LICENSE Artifact
         uses: actions/download-artifact@v3
         with:
