@@ -126,7 +126,13 @@ jobs:
         id: guid
       - name: Perform substitutions
         shell: bash
-        run: sed -i '' AdeptWindowsInstaller/Adept-X.X-Installer.iss -e s/__STAGING_AREA__/stage/g -e s/__OUTPUT_DIRECTORY__/./g -e s/__FAVICON_DIRECTORY__/Adept\res/g
+        run: >
+          sed -i AdeptWindowsInstaller/Adept-X.X-Installer.iss
+            -e s/__STAGING_AREA__/stage/g
+            -e s/__OUTPUT_DIRECTORY__/./g
+            -e s/__FAVICON_DIRECTORY__/Adept\res/g
+            -e s/X.X/nightly/g
+            -e s/adeptX-X/adept-nightly/g
       - name: Download Support Libraries
         shell: bash
         run: wget -O Adept-Windows-From-Source-Necessities.zip https://github.com/AdeptLanguage/Adept/releases/download/v2.6/Adept-Windows-From-Source-Necessities.zip
@@ -140,9 +146,10 @@ jobs:
           mv build/adept.exe stage/adept.exe
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
+          mv AdeptWindowsInstaller/adeptX-X.bat stage/adeptX-X.bat
           mv Adept-Windows-From-Source-Necessities/* stage/
       - name: Package as Installer
-        run: iscc AdeptWindowsInstaller/Adept-X.X-Installer.iss
+        run: iscc AdeptWindowsInstaller/Adept-nightly-installer.iss
   deploy:
     needs: [test, build-windows-installer]
     runs-on: ubuntu-latest
