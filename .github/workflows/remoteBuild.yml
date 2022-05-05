@@ -48,9 +48,9 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         with:
           command: c
-          cwd: res
-          files: necessities
-          outPath: necessities.tar.gz
+          cwd: res/necessities
+          files: windows
+          outPath: windows-necessities.tar.gz
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -66,8 +66,8 @@ jobs:
         uses: actions/upload-artifact@v3
         if: ${{ matrix.os == 'windows-latest' }}
         with:
-          name: necessities
-          path: necessities.tar.gz
+          name: windows-necessities
+          path: windows-necessities.tar.gz
   test:
     needs: build
     runs-on: ${{ matrix.os }}
@@ -115,7 +115,7 @@ jobs:
       - name: Download Support Libraries Artifact
         uses: actions/download-artifact@v3
         with:
-          name: necessities
+          name: windows-necessities
       - name: Unpack Build Artifact
         uses: a7ul/tar-action@v1.1.0
         with:
@@ -125,7 +125,7 @@ jobs:
         uses: a7ul/tar-action@v1.1.0
         with:
           command: x
-          files: necessities.tar.gz
+          files: windows-necessities.tar.gz
       - name: Checkout Adept Standard Library
         uses: actions/checkout@v3
         with:
@@ -157,7 +157,7 @@ jobs:
         run: |
           mkdir -p stage
           mv build/adept.exe stage/adept.exe
-          mv necessities/* stage/
+          mv windows/* stage/
           mv AdeptWindowsInstaller/adeptX-X.bat stage/adeptX-X.bat
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
