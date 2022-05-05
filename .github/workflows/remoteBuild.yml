@@ -162,7 +162,7 @@ jobs:
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
       - name: Package as Installer
-        run: iscc AdeptWindowsInstaller/Adept-nightly-installer.iss
+        run: iscc AdeptWindowsInstaller/Adept-X.X-installer.iss
   deploy:
     needs: [test, build-windows-installer]
     runs-on: ubuntu-latest
