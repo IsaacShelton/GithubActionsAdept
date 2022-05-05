@@ -68,6 +68,12 @@ jobs:
         with:
           name: windows-necessities
           path: windows-necessities.tar.gz
+      - name: Upload LICENSE Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          name: LICENSE
+          path: LICENSE
   test:
     needs: build
     runs-on: ${{ matrix.os }}
@@ -116,6 +122,10 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: windows-necessities
+      - name: Download LICENSE Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: LICENSE
       - name: Unpack Build Artifact
         uses: a7ul/tar-action@v1.1.0
         with:
@@ -161,6 +171,7 @@ jobs:
           mv AdeptWindowsInstaller/adeptX-X.bat stage/adeptX-X.bat
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
+          mv LICENSE stage/LICENSE
       - name: Package as Installer
         run: iscc AdeptWindowsInstaller/Adept-X.X-installer.iss
   deploy:
