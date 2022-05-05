@@ -127,7 +127,7 @@ jobs:
       - name: Perform substitutions
         shell: bash
         run: >
-          sed -i AdeptWindowsInstaller/Adept-X.X-Installer.iss
+          sed -i AdeptWindowsInstaller/Adept-X.X-installer.iss
             -e s/__STAGING_AREA__/stage/g
             -e s/__OUTPUT_DIRECTORY__/./g
             -e s/__FAVICON_DIRECTORY__/Adept\res/g
@@ -174,7 +174,7 @@ jobs:
         run: |
           mkdir stage
           mv windows-latest/build/adept.exe stage/x86_64-Windows-adept.exe
-          mv Adept-nightly-Installer.exe stage/Adept-nightly-Installer.exe
+          mv Adept-nightly-installer.exe stage/Adept-nightly-installer.exe
       - name: Release
         uses: IsaacShelton/update-existing-release@v1.2.0
         with:
@@ -183,4 +183,4 @@ jobs:
           replace: true
           files: >
             stage/x86_64-Windows-adept.exe
-            stage/Adept-nightly-Installer.exe
+            stage/Adept-nightly-installer.exe
