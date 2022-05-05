@@ -172,6 +172,7 @@ jobs:
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
           mv LICENSE stage/LICENSE
+          ls -lah stage
       - name: Package as Installer
         run: iscc AdeptWindowsInstaller/Adept-X.X-installer.iss
   deploy:
