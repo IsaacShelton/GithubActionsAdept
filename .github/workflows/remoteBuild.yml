@@ -167,7 +167,7 @@ jobs:
           mkdir -p stage
           mv build/adept.exe stage/adept.exe
           mv res/necessities/windows/* stage/
-          mv AdeptWindowsInstaller/adeptX-X.bat stage/adeptX-X.bat
+          mv AdeptWindowsInstaller/adeptX-X.bat stage/adept-nightly.bat
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
           mv LICENSE stage/LICENSE
