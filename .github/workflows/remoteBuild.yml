@@ -186,3 +186,4 @@ jobs:
           files: >
             stage/x86_64-Windows-adept.exe
             stage/Adept-nightly-installer.exe
+
