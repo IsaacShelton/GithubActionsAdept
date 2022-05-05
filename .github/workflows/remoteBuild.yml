@@ -48,9 +48,8 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         with:
           command: c
-          cwd: res/necessities
-          files: windows
-          outPath: windows-necessities.tar.gz
+          files: res
+          outPath: res.tar.gz
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -62,12 +61,12 @@ jobs:
         with:
           name: e2e-archive
           path: e2e.tar.gz
-      - name: Upload Support Libraries Artifact
+      - name: Upload Resources Artifact
         uses: actions/upload-artifact@v3
         if: ${{ matrix.os == 'windows-latest' }}
         with:
-          name: windows-necessities
-          path: windows-necessities.tar.gz
+          name: res
+          path: res.tar.gz
       - name: Upload LICENSE Artifact
         uses: actions/upload-artifact@v3
         if: ${{ matrix.os == 'windows-latest' }}
@@ -135,7 +134,7 @@ jobs:
         uses: a7ul/tar-action@v1.1.0
         with:
           command: x
-          files: windows-necessities.tar.gz
+          files: res.tar.gz
       - name: Checkout Adept Standard Library
         uses: actions/checkout@v3
         with:
@@ -161,13 +160,13 @@ jobs:
       - name: Perform substitutions
         shell: bash
         run: >
-          sed -i AdeptWindowsInstaller/Adept-X.X-installer.iss -e 's/__STAGING_AREA__/..\/stage/g' -e 's/__OUTPUT_DIRECTORY__/./g' -e 's/__FAVICON_DIRECTORY__/Adept\\res/g' -e 's/X.X/nightly/g' -e 's/adeptX-X/adept-nightly/g' -e 's/{7D143E16-9268-4F20-A0FA-8B30D8B14ECA}/${{steps.guid.outputs.guid}}/g'
+          sed -i AdeptWindowsInstaller/Adept-X.X-installer.iss -e 's/__STAGING_AREA__/..\/stage/g' -e 's/__OUTPUT_DIRECTORY__/./g' -e 's/__FAVICON_DIRECTORY__/..\/res/g' -e 's/X.X/nightly/g' -e 's/adeptX-X/adept-nightly/g' -e 's/{7D143E16-9268-4F20-A0FA-8B30D8B14ECA}/${{steps.guid.outputs.guid}}/g'
       - name: Stage
         shell: bash
         run: |
           mkdir -p stage
           mv build/adept.exe stage/adept.exe
-          mv windows/* stage/
+          mv res/necessities/windows/* stage/
           mv AdeptWindowsInstaller/adeptX-X.bat stage/adeptX-X.bat
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
