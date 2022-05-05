@@ -128,13 +128,7 @@ jobs:
       - name: Perform substitutions
         shell: bash
         run: >
-          sed -i AdeptWindowsInstaller/Adept-X.X-installer.iss
-            -e 's/__STAGING_AREA__/stage/g'
-            -e 's/__OUTPUT_DIRECTORY__/./g'
-            -e 's/__FAVICON_DIRECTORY__/Adept\res/g'
-            -e 's/X.X/nightly/g'
-            -e 's/adeptX-X/adept-nightly/g'
-            -e 's/{7D143E16-9268-4F20-A0FA-8B30D8B14ECA}/${{steps.guid.outputs.guid}}/g'
+          sed -i AdeptWindowsInstaller/Adept-X.X-installer.iss -e 's/__STAGING_AREA__/stage/g' -e 's/__OUTPUT_DIRECTORY__/./g' -e 's/__FAVICON_DIRECTORY__/Adept\res/g' -e 's/X.X/nightly/g' -e 's/adeptX-X/adept-nightly/g' -e 's/{7D143E16-9268-4F20-A0FA-8B30D8B14ECA}/${{steps.guid.outputs.guid}}/g'
       - name: Download Support Libraries
         shell: bash
         run: wget -O Adept-Windows-From-Source-Necessities.zip https://github.com/AdeptLanguage/Adept/releases/download/v2.6/Adept-Windows-From-Source-Necessities.zip
@@ -146,10 +140,10 @@ jobs:
         run: |
           mkdir -p stage
           mv build/adept.exe stage/adept.exe
+          mv Adept-Windows-From-Source-Necessities/* stage/
+          mv AdeptWindowsInstaller/adeptX-X.bat stage/adeptX-X.bat
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
-          mv AdeptWindowsInstaller/adeptX-X.bat stage/adeptX-X.bat
-          mv Adept-Windows-From-Source-Necessities/* stage/
       - name: Package as Installer
         run: iscc AdeptWindowsInstaller/Adept-nightly-installer.iss
   deploy:
@@ -186,4 +180,3 @@ jobs:
           files: >
             stage/x86_64-Windows-adept.exe
             stage/Adept-nightly-installer.exe
-
