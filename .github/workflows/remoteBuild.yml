@@ -177,7 +177,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: windows-installer
-          path: Adept-nightly-installer.exe
+          path: AdeptWindowsInstaller/Adept-nightly-installer.exe
   deploy:
     needs: [test, build-windows-installer]
     runs-on: ubuntu-latest
