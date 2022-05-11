@@ -34,13 +34,13 @@ jobs:
           sudo apt-get install -y libcurl4-openssl-dev
       - name: Name required extra libraries (Windows)
         shell: bash
-        run: export EXTRA_REQUIRED_LIBS=-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32
+        run: export EXTRA_REQUIRED_LIBS="-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32"
       - name: Name required extra libraries (macOS)
         shell: bash
-        run: export EXTRA_REQUIRED_LIBS=-lldap -lpthread -lz -lcurses
+        run: export EXTRA_REQUIRED_LIBS="-lldap -lpthread -lz -lcurses"
       - name: Name required extra libraries (Ubuntu)
         shell: bash
-        run: export EXTRA_REQUIRED_LIBS=-lldap -lpthread -lz -lcurses
+        run: export EXTRA_REQUIRED_LIBS="-lldap -lpthread -lz -lcurses"
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
