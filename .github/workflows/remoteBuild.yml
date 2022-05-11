@@ -28,10 +28,16 @@ jobs:
         with:
           version: "13.0.1"
           directory: llvm
+      - name: Install libcurl (ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt-get install -y libcurl-dev
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
         run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -G Ninja
+        env:
+          CMAKE_PREFIX_PATH: ${{github.workspace}}/llvm
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
       - name: Archive Build Result
