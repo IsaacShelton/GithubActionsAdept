@@ -33,12 +33,15 @@ jobs:
         run: |
           sudo apt-get install -y libcurl4-openssl-dev
       - name: Name required extra libraries (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
         run: export EXTRA_REQUIRED_LIBS="-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32"
       - name: Name required extra libraries (macOS)
+        if: ${{ matrix.os == 'macos-latest' }}
         shell: bash
         run: export EXTRA_REQUIRED_LIBS="-lldap -lpthread -lz -lcurses"
       - name: Name required extra libraries (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
         run: export EXTRA_REQUIRED_LIBS="-lldap -lpthread -lz -lcurses"
       - name: Get latest CMake and Ninja
@@ -50,7 +53,7 @@ jobs:
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm
           -DADEPT_LINK_LLVM_STATIC=On
-          -DEXTRA_REQUIRED_LIBS="$EXTRA_REQUIRED_LIBS"
+          -DEXTRA_REQUIRED_LIBS=$EXTRA_REQUIRED_LIBS
           -G Ninja
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
