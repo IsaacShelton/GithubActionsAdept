@@ -28,8 +28,6 @@ jobs:
         with:
           version: "13.0.1"
           directory: llvm
-      - name: Examine LLVM binaries
-        run: ls -la ${{github.workspace}}/llvm
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
