@@ -42,7 +42,6 @@ jobs:
         shell: bash
         run: export EXTRA_REQUIRED_LIBS=-lldap -lpthread -lz -lcurses
       - name: Get latest CMake and Ninja
-        shell: bash
         uses: lukka/get-cmake@latest
       - name: Configure
         shell: bash
