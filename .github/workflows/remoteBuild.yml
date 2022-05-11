@@ -28,16 +28,31 @@ jobs:
         with:
           version: "13.0.1"
           directory: ${{github.workspace}}/llvm
-      - name: Install libcurl (ubuntu)
+      - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
           sudo apt-get install -y libcurl4-openssl-dev
+      - name: Name required extra libraries (Windows)
+        shell: bash
+        run: export EXTRA_REQUIRED_LIBS=-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32
+      - name: Name required extra libraries (macOS)
+        shell: bash
+        run: export EXTRA_REQUIRED_LIBS=-lldap -lpthread -lz -lcurses
+      - name: Name required extra libraries (Ubuntu)
+        shell: bash
+        run: export EXTRA_REQUIRED_LIBS=-lldap -lpthread -lz -lcurses
       - name: Get latest CMake and Ninja
+        shell: bash
         uses: lukka/get-cmake@latest
       - name: Configure
-        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DADEPT_LINK_LLVM_STATIC=On -G Ninja
-        env:
-          CMAKE_PREFIX_PATH: ${{github.workspace}}/llvm
+        shell: bash
+        run: >
+          cmake -B ${{github.workspace}}/build
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+            -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm
+            -DADEPT_LINK_LLVM_STATIC=On
+            -DEXTRA_REQUIRED_LIBS="$EXTRA_REQUIRED_LIBS"
+            -G Ninja
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
       - name: Archive Build Result
