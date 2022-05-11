@@ -27,15 +27,15 @@ jobs:
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "13.0.1"
-          directory: llvm
+          directory: ${{github.workspace}}/llvm
       - name: Install libcurl (ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          sudo apt-get install -y libcurl-dev
+          sudo apt-get install -y libcurl4-openssl-dev
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
-        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -G Ninja
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DADEPT_LINK_LLVM_STATIC=On -G Ninja
         env:
           CMAKE_PREFIX_PATH: ${{github.workspace}}/llvm
       - name: Build
