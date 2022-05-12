@@ -47,6 +47,7 @@ jobs:
       # since the included 'tar' can't extract .tar.xz files.
       # Not only that, but 'tar' will instead fail silently and return 0, as if it was successful!
       # It took me so long to realize this, until I ran `tar --version` just to see that xz is not supported in the provided build.
+      # xz-windows/bin_x86-64/xz 
       - name: Download xz (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
@@ -55,7 +56,6 @@ jobs:
           mv xz-windows.7z xz-windows/xz-windows.7z
           cd xz-windows
           7z x xz-windows.7z
-          xz-windows/bin_x86-64/xz 
       - name: Download LLVM Source Code (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
