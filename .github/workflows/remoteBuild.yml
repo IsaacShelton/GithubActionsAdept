@@ -48,7 +48,7 @@ jobs:
         run: |
           curl -o llvm-source-tree.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
           tar xJf llvm-source-tree.tar.xz
-          mv llvm-13.0.1.src llvm-source-tree
+          ls
       - name: Build LLVM from Source (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run:
