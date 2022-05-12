@@ -60,7 +60,7 @@ jobs:
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
           curl -o llvm-source-tree.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
-          tar -x --xz llvm-source-tree.tar.xz
+          7z x -so llvm-source-tree.tar.xz | 7z x -si -ttar
           ls
       - name: Build LLVM from Source (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
