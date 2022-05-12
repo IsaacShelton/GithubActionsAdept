@@ -44,16 +44,16 @@ jobs:
       # Which means we're gonna have to spend an hour or so compiling from scratch (Github willing)
       # At least we have ninja
       - name: Download LLVM Source Code (Windows)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && ${{ matrix.os == 'windows-latest' }}
-        run: curl -o llvm-source-tree.tar.gz https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
+        run: curl -o llvm-source-tree.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
       - name: Unpack LLVM Source Code (Windows)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && ${{ matrix.os == 'windows-latest' }}
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         uses: a7ul/tar-action@v1.1.0
         with:
           command: x
-          files: llvm-source-tree.tar.gz
+          files: llvm-source-tree.tar.xz
       - name: Build LLVM from Source (Windows)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && ${{ matrix.os == 'windows-latest' }}
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run:
           ls llvm-source-tree
       - name: Install libcurl (Ubuntu)
