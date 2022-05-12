@@ -39,6 +39,10 @@ jobs:
           version: "13.0.1"
           directory: ${{github.workspace}}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+      - name: Configure to use MinGW-w64 (Windows)
+        shell: bash
+        export CC=x86_64-w64-mingw32-gcc
+        export CXX=x86_64-w64-mingw32-g++
       # For some god-forsaken reason, there is no prebuilt version of LLVM for developing on Windows.
       # Every version comes with llvm-config, LLVMConfig.cmake, and other files needed, expect Windows!
       # Which means we're gonna have to spend an hour or so compiling from scratch (Github willing)
@@ -55,9 +59,10 @@ jobs:
       - name: Build LLVM from Source (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         working-directory: ${{ github.workspace }}/llvm-source-tree
+        shell: bash
         run: |
           mkdir build
-          cmake -B build -DCMAKE_BUILD_TYPE="Release"
+          cmake -B build -DCMAKE_BUILD_TYPE="Release" -G Ninja
           cmake --build build
           ls build
       - name: Install libcurl (Ubuntu)
