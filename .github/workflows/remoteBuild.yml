@@ -32,7 +32,7 @@ jobs:
           key: ${{runner.os}}-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
           restore-keys: |
             ${{runner.os}}-llvm-13.0.1-
-      - name: Install LLVM
+      - name: Download LLVM
         if: steps.cache-llvm.outputs.cache-hit != 'true'
         uses: KyleMayes/install-llvm-action@v1
         with:
@@ -54,7 +54,7 @@ jobs:
       - name: Name required extra libraries (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
-        run: echo 'extra_required_libs=-lldap -lpthread -lz -lcurses' >> $GITHUB_ENV
+        run: echo 'extra_required_libs=-lpthread -lz -lcurses -lm' >> $GITHUB_ENV
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
