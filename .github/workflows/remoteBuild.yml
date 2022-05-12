@@ -33,7 +33,7 @@ jobs:
           restore-keys: |
             ${{runner.os}}-llvm-13.0.1-
       - name: Download LLVM
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && ${{ matrix.os != 'windows-latest '}}
+        if: steps.cache-llvm.outputs.cache-hit != 'true' && ${{ matrix.os != 'windows-latest'}}
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "13.0.1"
@@ -45,11 +45,10 @@ jobs:
       # At least we have ninja
       - name: Build LLVM from Source (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && ${{ matrix.os == 'windows-latest '}}
-        shell: bash
         run: |
-          wget -O llvm-from-src.zip https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
-          tar -xf llvm-from-src.zip
-          ls llvm-from-zip
+          curl -O llvm-from-src.tar.gz https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
+          tar -xf llvm-from-src.tar.gz
+          ls llvm-from-src
       - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
