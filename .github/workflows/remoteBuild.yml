@@ -23,11 +23,7 @@ jobs:
         working-directory: ${{github.workspace}}
     steps:
       - uses: actions/checkout@v3
-      - name: Install LLVM Libraries
-        uses: KyleMayes/install-llvm-action@v1
-        with:
-          version: "13.0.1"
-      - name: Cache llvm
+      - name: Cache LLVM
         id: cache-llvm
         uses: actions/cache@v2
         with:
@@ -38,7 +34,7 @@ jobs:
         with:
           version: "13.0.1"
           directory: ${{github.workspace}}/llvm
-        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
