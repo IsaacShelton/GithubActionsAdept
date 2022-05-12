@@ -35,20 +35,19 @@ jobs:
       - name: Name required extra libraries (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
-        run: export EXTRA_REQUIRED_LIBS="-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32"
+        run: echo "EXTRA_REQUIRED_LIBS=-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32" >> $GITHUB_ENV
       - name: Name required extra libraries (macOS)
         if: ${{ matrix.os == 'macos-latest' }}
         shell: bash
-        run: export EXTRA_REQUIRED_LIBS="-lldap -lpthread -lz -lcurses"
+        run: echo "EXTRA_REQUIRED_LIBS=-lldap -lpthread -lz -lcurses" >> $GITHUB_ENV
       - name: Name required extra libraries (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
-        run: export EXTRA_REQUIRED_LIBS="-lldap -lpthread -lz -lcurses"
+        run: echo "EXTRA_REQUIRED_LIBS=-lldap -lpthread -lz -lcurses" >> $GITHUB_ENV
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
-        shell: bash
-        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -D=$EXTRA_REQUIRED_LIBS -G Ninja
+        run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -D=${{env.extra_required_libs}} -G Ninja
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
       - name: Archive Build Result
