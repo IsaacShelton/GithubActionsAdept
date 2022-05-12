@@ -51,7 +51,7 @@ jobs:
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
           curl -o xz-windows.7z https://tukaani.org/xz/xz-5.2.5-windows.7z
-          7z xz-windows.7z
+          7z x xz-windows.7z
           ls xz-windows
       - name: Download LLVM Source Code (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
