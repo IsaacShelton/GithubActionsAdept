@@ -27,7 +27,18 @@ jobs:
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "13.0.1"
+      - name: Cache llvm
+        id: cache-llvm
+        uses: actions/cache@v2
+        with:
+          path: ${{github.workspace}}/llvm
+          key: llvm-13.0.1
+      - name: Install LLVM
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "13.0.1"
           directory: ${{github.workspace}}/llvm
+        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
       - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
@@ -35,15 +46,15 @@ jobs:
       - name: Name required extra libraries (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
-        run: echo "extra_required_libs=-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32" >> $GITHUB_ENV
+        run: echo "extra_required_libs='-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32'" >> $GITHUB_ENV
       - name: Name required extra libraries (macOS)
         if: ${{ matrix.os == 'macos-latest' }}
         shell: bash
-        run: echo "extra_required_libs=-lldap -lpthread -lz -lcurses" >> $GITHUB_ENV
+        run: echo "extra_required_libs='-lldap -lpthread -lz -lcurses'" >> $GITHUB_ENV
       - name: Name required extra libraries (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
-        run: echo "extra_required_libs=-lldap -lpthread -lz -lcurses" >> $GITHUB_ENV
+        run: echo "extra_required_libs='-lldap -lpthread -lz -lcurses'" >> $GITHUB_ENV
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
