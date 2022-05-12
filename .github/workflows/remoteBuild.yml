@@ -43,29 +43,16 @@ jobs:
       # Every version comes with llvm-config, LLVMConfig.cmake, and other files needed, expect Windows!
       # Which means we're gonna have to spend an hour or so compiling from scratch (Github willing)
       # At least we have ninja
-      # Oh and by the way, we can't even extract it without downloading another program,
-      # since the included 'tar' can't extract .tar.xz files.
-      # Not only that, but 'tar' will instead fail silently and return 0, as if it was successful!
-      # It took me so long to realize this, until I ran `tar --version` just to see that xz is not supported in the provided build.
-      # xz-windows/bin_x86-64/xz 
-      - name: Download xz (Windows)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
-        run: |
-          curl -o xz-windows.7z https://tukaani.org/xz/xz-5.2.5-windows.7z
-          mkdir xz-windows
-          mv xz-windows.7z xz-windows/xz-windows.7z
-          cd xz-windows
-          7z x xz-windows.7z
       - name: Download LLVM Source Code (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
-          curl -o llvm-source-tree.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
-          7z x -so llvm-source-tree.tar.xz | 7z x -si -ttar
+          curl -o llvm-source-tree.tar.xz -L https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
+          tar xf llvm-source-tree.tar.xz
           ls
       - name: Build LLVM from Source (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run:
-          ls llvm-source-tree
+          ls
       - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
