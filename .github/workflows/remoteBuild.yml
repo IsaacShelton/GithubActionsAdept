@@ -42,15 +42,15 @@ jobs:
       - name: Name required extra libraries (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
-        run: echo "extra_required_libs='-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32'" >> $GITHUB_ENV
+        run: echo "extra_required_libs='\"-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32\"'" >> $GITHUB_ENV
       - name: Name required extra libraries (macOS)
         if: ${{ matrix.os == 'macos-latest' }}
         shell: bash
-        run: echo "extra_required_libs='-lldap -lpthread -lz -lcurses'" >> $GITHUB_ENV
+        run: echo "extra_required_libs='\"-lldap -lpthread -lz -lcurses\"'" >> $GITHUB_ENV
       - name: Name required extra libraries (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
-        run: echo "extra_required_libs='-lldap -lpthread -lz -lcurses'" >> $GITHUB_ENV
+        run: echo "extra_required_libs='\"-lldap -lpthread -lz -lcurses\"'" >> $GITHUB_ENV
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
