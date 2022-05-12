@@ -52,6 +52,7 @@ jobs:
         run: |
           curl -o xz-windows.7z https://tukaani.org/xz/xz-5.2.5-windows.7z
           mkdir xz-windows
+          mv xz-windows.7z xz-windows/xz-windows.7z
           cd xz-windows
           7z x xz-windows.7z
           ls
