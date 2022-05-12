@@ -58,7 +58,9 @@ jobs:
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure
-        run: cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
+        run: |
+          ls ${{github.workspace}}/llvm/lib/cmake/llvm
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake/llvm
       - name: Build
