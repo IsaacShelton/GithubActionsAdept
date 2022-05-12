@@ -55,7 +55,7 @@ jobs:
       - name: Build LLVM from Source (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         working-directory: ${{ github.workspace }}/llvm-source-tree
-        run:
+        run: |
           mkdir build
           cmake -B build -DCMAKE_BUILD_TYPE="Release"
           cmake --build build
