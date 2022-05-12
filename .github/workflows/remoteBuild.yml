@@ -55,13 +55,12 @@ jobs:
           mv xz-windows.7z xz-windows/xz-windows.7z
           cd xz-windows
           7z x xz-windows.7z
-          ls
-          bin_x86-64/xz --version
+          xz-windows/bin_x86-64/xz 
       - name: Download LLVM Source Code (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
           curl -o llvm-source-tree.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
-          7z x llvm-source-tree.tar.xz
+          tar -x --xz llvm-source-tree.tar.xz
           ls
       - name: Build LLVM from Source (Windows)
         if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
@@ -69,7 +68,9 @@ jobs:
           ls llvm-source-tree
       - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: sudo apt-get install -y libcurl4-openssl-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
       - name: Name required extra libraries (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
