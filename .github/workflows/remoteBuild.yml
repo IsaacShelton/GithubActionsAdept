@@ -39,6 +39,8 @@ jobs:
           version: "13.0.1"
           directory: ${{github.workspace}}/llvm
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+      - name: Get latest CMake and Ninja
+        uses: lukka/get-cmake@latest
       - name: Configure to use MinGW-w64 (Windows)
         if: matrix.os == 'windows-latest'
         shell: bash
@@ -84,8 +86,6 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
         run: echo 'extra_required_libs=-ldl -lpthread -lz -lcurses -lm' >> $GITHUB_ENV
-      - name: Get latest CMake and Ninja
-        uses: lukka/get-cmake@latest
       - name: Configure
         run: |
           ls ${{github.workspace}}/llvm/lib/cmake
