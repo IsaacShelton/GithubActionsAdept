@@ -31,7 +31,7 @@ jobs:
             ${{github.workspace}}/llvm
           key: ${{runner.os}}-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
           restore-keys: |
-            ${{runner.os}}-llvm-13.0.1-
+            ${{runner.os}}-cache2-llvm-13.0.1-
       - name: Download LLVM (Unix)
         if: steps.llvm-cache.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
         uses: KyleMayes/install-llvm-action@v1
@@ -59,18 +59,16 @@ jobs:
         run: |
           7z x llvm-source-tree.tar.xz
           tar xf llvm-source-tree.tar
-          mv llvm-13.0.1.src llvm-source-tree
+          mv llvm-13.0.1.src llvm
       - name: Build LLVM from Source (Windows)
         if: steps.llvm-cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
-        working-directory: ${{ github.workspace }}/llvm-source-tree
+        working-directory: ${{ github.workspace }}/llvm
         shell: bash
         run: |
           mkdir build
           cmake -B build -DCMAKE_BUILD_TYPE="Release" -G Ninja
           cmake --build build
           ls build
-          cd ..
-          mv llvm-source-tree llvm
       - name: Download and extract libcurl (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
