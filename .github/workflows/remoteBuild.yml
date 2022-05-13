@@ -96,7 +96,7 @@ jobs:
         run: echo 'extra_required_libs=-ldl -lpthread -lz -lcurses -lm' >> $GITHUB_ENV
       - name: Create placeholder directory for libcurl (Unix)
         if: ${{ matrix.os != 'windows-latest' }}
-        mkdir -p ${{github.workspace}}/libcurl
+        run: mkdir -p ${{github.workspace}}/libcurl
       - name: Configure
         run: |
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
