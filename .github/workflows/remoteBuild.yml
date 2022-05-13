@@ -70,6 +70,12 @@ jobs:
           cmake --build build
           ls build
           mv build ../llvm
+      - name: Download and extract libcurl (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          curl -L https://curl.se/windows/dl-7.83.1/curl-7.83.1-win64-mingw.zip
+          unzip curl-7.83.1-mingw
+          mv curl-7.83.1-mingw curl
       - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
@@ -90,7 +96,7 @@ jobs:
       - name: Configure
         run: |
           ls ${{github.workspace}}/llvm/lib/cmake
-          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm;${{github.workspace}}/curl -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
       - name: Build
