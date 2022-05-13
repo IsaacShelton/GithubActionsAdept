@@ -73,8 +73,8 @@ jobs:
       - name: Download and extract libcurl (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          curl -L https://curl.se/windows/dl-7.83.1/curl-7.83.1-win64-mingw.zip
-          unzip curl-7.83.1-mingw
+          curl -o curl.zip -L https://curl.se/windows/dl-7.83.1/curl-7.83.1-win64-mingw.zip
+          unzip curl.zip
           mv curl-7.83.1-mingw curl
       - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
