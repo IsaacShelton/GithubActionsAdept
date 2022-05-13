@@ -72,6 +72,7 @@ jobs:
           mv build ../llvm
       - name: Download and extract libcurl (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
+        shell: bash
         run: |
           curl -o curl.zip -L https://curl.se/windows/dl-7.83.1/curl-7.83.1-win64-mingw.zip
           unzip curl.zip
