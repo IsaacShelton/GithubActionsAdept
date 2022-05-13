@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Use cached LLVM if available
-        id: cache-llvm
+        id: llvm-cache
         uses: actions/cache@v2
         with:
           path: |
@@ -33,12 +33,12 @@ jobs:
           restore-keys: |
             ${{runner.os}}-llvm-13.0.1-
       - name: Download LLVM (Unix)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
+        if: steps.llvm-cache.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "13.0.1"
           directory: ${{github.workspace}}/llvm
-          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
+          cached: ${{ steps.llvm-cache.outputs.cache-hit }}
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
       - name: Configure to use MinGW-w64 (Windows)
@@ -52,16 +52,16 @@ jobs:
       # Which means we're gonna have to spend an hour or so compiling from scratch (Github willing)
       # At least we have ninja
       - name: Download LLVM Source Code (Windows)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
+        if: steps.llvm-cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: curl -o llvm-source-tree.tar.xz -L https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz
       - name: Extract LLVM Source Code (Windows)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
+        if: steps.llvm-cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         run: |
           7z x llvm-source-tree.tar.xz
           tar xf llvm-source-tree.tar
           mv llvm-13.0.1.src llvm-source-tree
       - name: Build LLVM from Source (Windows)
-        if: steps.cache-llvm.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
+        if: steps.llvm-cache.outputs.cache-hit != 'true' && matrix.os == 'windows-latest'
         working-directory: ${{ github.workspace }}/llvm-source-tree
         shell: bash
         run: |
@@ -69,7 +69,8 @@ jobs:
           cmake -B build -DCMAKE_BUILD_TYPE="Release" -G Ninja
           cmake --build build
           ls build
-          mv build ../llvm
+          cd ..
+          mv llvm-source-tree llvm
       - name: Download and extract libcurl (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
@@ -94,12 +95,9 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
         run: echo 'extra_required_libs=-ldl -lpthread -lz -lcurses -lm' >> $GITHUB_ENV
-      - name: Create placeholder directory for libcurl (Unix)
-        if: ${{ matrix.os != 'windows-latest' }}
-        run: mkdir -p ${{github.workspace}}/libcurl
       - name: Configure
         run: |
-          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DCURL_LIBRARY=libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
       - name: Build
