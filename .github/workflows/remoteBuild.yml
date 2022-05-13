@@ -75,7 +75,7 @@ jobs:
         run: |
           curl -o curl.zip -L https://curl.se/windows/dl-7.83.1/curl-7.83.1-win64-mingw.zip
           unzip curl.zip
-          mv curl-7.83.1-mingw curl
+          mv curl-7.83.1-win64-mingw libcurl
       - name: Install libcurl (Ubuntu)
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
@@ -95,8 +95,8 @@ jobs:
         run: echo 'extra_required_libs=-ldl -lpthread -lz -lcurses -lm' >> $GITHUB_ENV
       - name: Configure
         run: |
-          mkdir -p ${{github.workspace}}/curl
-          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm;${{github.workspace}}/curl -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+          mkdir -p ${{github.workspace}}/libcurl
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm;${{github.workspace}}/libcurl -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
       - name: Build
