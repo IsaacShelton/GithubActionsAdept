@@ -29,7 +29,7 @@ jobs:
         with:
           path: |
             ${{github.workspace}}/llvm
-          key: ${{runner.os}}-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
+          key: ${{runner.os}}-cache2-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
           restore-keys: |
             ${{runner.os}}-cache2-llvm-13.0.1-
       - name: Download LLVM (Unix)
@@ -93,9 +93,16 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
         run: echo 'extra_required_libs=-ldl -lpthread -lz -lcurses -lm' >> $GITHUB_ENV
-      - name: Configure
+      - name: Configure (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
         run: |
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DCURL_LIBRARY=libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+        env:
+          LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
+      - name: Configure (Unix)
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
       - name: Build
