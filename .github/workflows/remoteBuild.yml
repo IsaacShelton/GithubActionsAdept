@@ -29,9 +29,9 @@ jobs:
         with:
           path: |
             ${{github.workspace}}/llvm
-          key: ${{runner.os}}-cache2-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
+          key: ${{runner.os}}-cache3-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
           restore-keys: |
-            ${{runner.os}}-cache2-llvm-13.0.1-
+            ${{runner.os}}-cache3-llvm-13.0.1-
       - name: Download LLVM (Unix)
         if: steps.llvm-cache.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
         uses: KyleMayes/install-llvm-action@v1
