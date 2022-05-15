@@ -52,7 +52,7 @@ def test(args, expected_output):
     ansi_escape_8bit = re.compile(
         br'(?:\x1B[@-Z\\-_]|[\x80-\x9A\x9C-\x9F]|(?:\x1B\[|\x9B)[0-?]*[ -/]*[@-~])'
     )
-    actual_output = ansi_escape_8bit.sub(b'', res.stdout.decode('ascii').replace('\r\n','\n'))
+    actual_output = ansi_escape_8bit.sub(b'', res.stdout.replace(b'\r\n', b'\n')).decode('ascii')
     
     if actual_output != expected_output:
         print(RED + "TEST FAILED: Command " + str(args) + " does not match expected output." + NORMAL)
