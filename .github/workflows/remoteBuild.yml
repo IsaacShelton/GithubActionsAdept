@@ -96,10 +96,9 @@ jobs:
       - name: Configure (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_INCLUDE_DIR=libcurl/include -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCMAKE_LIBRARY_PATH=${{github.workspace}}/libcurl -DCURL_LIBRARY=curl -DCURL_INCLUDE_DIR=libcurl/include -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
-          LD_LIBRARY_PATH: ${{github.workspace}}/libcurl
       - name: Configure (Unix)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
