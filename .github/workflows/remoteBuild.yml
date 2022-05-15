@@ -69,8 +69,6 @@ jobs:
           cmake -B build -DCMAKE_BUILD_TYPE="Release" -G Ninja
           cmake --build build
           ls build
-      - name: Inspect LLVM files
-        run: ls llvm
       - name: Download and extract libcurl (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
@@ -100,7 +98,7 @@ jobs:
         run: |
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DCURL_LIBRARY=libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
         env:
-          LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
+          LLVM_DIR: ${{github.workspace}}/llvm
       - name: Configure (Unix)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
