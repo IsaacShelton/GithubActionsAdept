@@ -81,3 +81,6 @@ if(WIN32)
 endif()
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/necessities/adept.config DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+enable_testing()
+add_subdirectory(tests)

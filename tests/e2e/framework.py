@@ -56,9 +56,9 @@ def test(args, expected_output):
     
     if actual_output != expected_output:
         print(RED + "TEST FAILED: Command " + str(args) + " does not match expected output." + NORMAL)
-        print(RED + "Expected...\n" + NORMAL + expected_output)
-        print(RED + "Actual...\n" + NORMAL + actual_output)
+        print(RED + "Expected...\n" + NORMAL + str(expected_output))
+        print(RED + "Actual...\n" + NORMAL + str(actual_output))
         all_good = False
-        print(RED + "Raw bytes...\n" + NORMAL + res.stdout)
+        print(RED + "Raw bytes...\n" + NORMAL + str(res.stdout))
 
     res.check_returncode()
