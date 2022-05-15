@@ -4,6 +4,7 @@
 #     by Isaac Shelton
 # ---------------------------------------------------------
 
+import re
 import sys
 import subprocess
 
