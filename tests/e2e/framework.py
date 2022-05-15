@@ -32,7 +32,7 @@ def e2e_framework_run(run_all_tests_function):
         print(RED + "ERROR: A testing command exited with non-zero status" + NORMAL)
         print(RED + "Cmd: " + str(e.cmd) + NORMAL)
         print(RED + "Out ---------------------------" + NORMAL)
-        print(e.output.decode('ascii'))
+        print(e.output)
         all_good = False
 
     if not all_good:
@@ -45,7 +45,6 @@ def e2e_framework_run(run_all_tests_function):
 def test(args, expected_output):
     global all_good
     res = subprocess.run(args, capture_output=True)
-    res.check_returncode()
 
     # Remove ANSI excape sequences
     # https://stackoverflow.com/questions/14693701/how-can-i-remove-the-ansi-escape-sequences-from-a-string-in-python
@@ -61,3 +60,5 @@ def test(args, expected_output):
         print(RED + "Actual...\n" + NORMAL + actual_output)
         all_good = False
         print(RED + "Raw bytes...\n" + NORMAL + res.stdout)
+
+    res.check_returncode()
