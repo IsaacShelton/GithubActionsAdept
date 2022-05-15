@@ -13,6 +13,7 @@ env:
 
 jobs:
   build:
+    name: format("Build / {0}", ${{os.runner}})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,7 +23,6 @@ jobs:
       run:
         working-directory: ${{github.workspace}}
     steps:
-      - name: format("Build / {0}", ${{os.runner}})
       - uses: actions/checkout@v3
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
