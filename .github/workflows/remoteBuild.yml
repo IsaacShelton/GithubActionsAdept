@@ -13,7 +13,6 @@ env:
 
 jobs:
   build:
-    name: format("Build / {0}", ${{os.runner}})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,6 +21,7 @@ jobs:
     defaults:
       run:
         working-directory: ${{github.workspace}}
+    name: format("Build / {0}", ${{os.runner}})
     steps:
       - uses: actions/checkout@v3
       - name: Get latest CMake and Ninja
