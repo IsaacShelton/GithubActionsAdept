@@ -106,7 +106,9 @@ jobs:
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
       - name: Build
-        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+        run: |
+          cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+          ls build
       - name: Archive Build Result
         uses: a7ul/tar-action@v1.1.0
         with:
@@ -123,7 +125,7 @@ jobs:
           outPath: e2e.tar.gz
       - name: Archive Support Libraries Infrastructure
         uses: a7ul/tar-action@v1.1.0
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'windows-latest' }}
         with:
           command: c
           files: res

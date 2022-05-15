@@ -20,7 +20,7 @@ link_directories(${LLVM_LIBRARY_DIRS})
 
 include_directories(include)
 
-set(app_source_files
+set(core_source_files
 	src/AST/EXPR/ast_expr_free.c src/AST/EXPR/ast_expr_str.c
 	src/AST/TYPE/ast_type_clone.c src/AST/TYPE/ast_type_free.c
 	src/AST/TYPE/ast_type_hash.c src/AST/TYPE/ast_type_helpers.c src/AST/TYPE/ast_type_identical.c
@@ -30,7 +30,7 @@ set(app_source_files
 	src/AST/ast_poly_catalog.c src/AST/ast.c
 	src/AST/meta_directives.c src/BKEND/backend.c src/BKEND/ir_to_c.c src/BKEND/ir_to_llvm.c src/BKEND/ir_to_llvm_impl.c src/BRIDGE/any.c
 	src/BRIDGE/bridge.c src/BRIDGE/funcpair.c src/BRIDGE/type_table.c src/BRIDGE/rtti.c src/DRVR/compiler.c
-	src/DRVR/config.c src/DRVR/main.c src/DRVR/object.c src/INFER/infer.c
+	src/DRVR/config.c src/DRVR/object.c src/INFER/infer.c
 	src/IR/ir_pool.c src/IR/ir_proc_map.c src/IR/ir_proc_query.c src/IR/ir_type.c src/IR/ir_type_spec.c src/IR/ir_value_str.c
 	src/IR/ir.c src/IR/ir_dump.c src/IR/ir_func_endpoint.c src/IR/ir_lowering.c
 	src/IRGEN/ir_builder.c src/IRGEN/ir_cache.c src/IRGEN/ir_gen_args.c src/IRGEN/ir_gen_check_prereq.c
@@ -43,18 +43,23 @@ set(app_source_files
 	src/PARSE/parse.c src/TOKEN/token_data.c src/UTIL/color.c src/UTIL/datatypes.c src/UTIL/download.c
 	src/UTIL/builtin_type.c src/UTIL/filename.c src/UTIL/ground.c src/UTIL/hash.c src/UTIL/jsmn_helper.c src/UTIL/levenshtein.c
 	src/UTIL/list.c src/UTIL/memory.c src/UTIL/search.c src/UTIL/stash.c src/UTIL/string_builder.c
-	src/UTIL/string_list.c src/UTIL/string.c src/UTIL/util.c
-)
+	src/UTIL/string_list.c src/UTIL/string.c src/UTIL/util.c)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	message(STATUS "Including debug files")
-	list(APPEND app_source_files src/DRVR/debug.c)
+	list(APPEND core_source_files src/DRVR/debug.c)
 	add_definitions( -DENABLE_DEBUG_FEATURES )
 else()
 	message(STATUS "Excluding debug files")
 endif()
 
+set(app_source_files
+	${core_source_files}
+	src/DRVR/main.c
+)
+
 add_executable(adept ${app_source_files})
+add_library(libadept STATIC ${core_source_files})
 
 if(ADEPT_LINK_LLVM_STATIC)
 	message(STATUS "Linking against LLVM statically")

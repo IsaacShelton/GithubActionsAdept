@@ -3,13 +3,15 @@
 #include <stdlib.h>
 #include "CuTest.h"
 
-CuSuite *HelloWorldSuite();
+CuSuite *CuSuite_for_ast_expr();
+CuSuite *CuSuite_for_lex();
 
 int RunAllTests(){
     CuString *output = CuStringNew();
     CuSuite* suite = CuSuiteNew();
 
-    CuSuiteAddSuite(suite, HelloWorldSuite());
+    CuSuiteAddSuite(suite, CuSuite_for_ast_expr());
+    CuSuiteAddSuite(suite, CuSuite_for_lex());
 
     CuSuiteRun(suite);
     CuSuiteSummary(suite, output);
