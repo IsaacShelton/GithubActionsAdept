@@ -46,8 +46,14 @@ def test(args, expected_output):
     res = subprocess.run(args, capture_output=True)
     res.check_returncode()
 
-    actual_output = res.stdout.decode('ascii').replace('\r\n','\n')
-
+    # Remove ANSI excape sequences
+    # https://stackoverflow.com/questions/14693701/how-can-i-remove-the-ansi-escape-sequences-from-a-string-in-python
+    # 7-bit and 8-bit C1 ANSI sequences
+    ansi_escape_8bit = re.compile(
+        br'(?:\x1B[@-Z\\-_]|[\x80-\x9A\x9C-\x9F]|(?:\x1B\[|\x9B)[0-?]*[ -/]*[@-~])'
+    )
+    actual_output = ansi_escape_8bit.sub(b'', res.stdout.decode('ascii').replace('\r\n','\n'))
+    
     if actual_output != expected_output:
         print(RED + "TEST FAILED: Command " + str(args) + " does not match expected output." + NORMAL)
         print(RED + "Expected...\n" + NORMAL + expected_output)
