@@ -33,13 +33,11 @@ jobs:
           export CC=x86_64-w64-mingw32-gcc
           export CXX=x86_64-w64-mingw32-g++
       - name: Utilize cached LLVM if available
-        uses: actions/cache@v3
+        uses: actions/cache@v2
         id: llvm
         with:
           path: ${{github.workspace}}/llvm
-          key: ${{runner.os}}-cache3-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
-          restore-keys: |
-            ${{runner.os}}-cache3-llvm-13.0.1-
+          key: ${{runner.os}}-cache4-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
       - name: Download LLVM (Unix)
         if: steps.llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
         uses: KyleMayes/install-llvm-action@v1
