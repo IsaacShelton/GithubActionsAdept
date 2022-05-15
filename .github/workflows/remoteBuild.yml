@@ -69,6 +69,90 @@ jobs:
           cmake -B build -DCMAKE_BUILD_TYPE="Release" -G Ninja
           cmake --build build
           ls build
+      - name: Inspect LLVM files
+        run: ls llvm
+      - name: Download and extract libcurl (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        shell: bash
+        run: |
+          curl -o curl.zip -L https://curl.se/windows/dl-7.83.1/curl-7.83.1-win64-mingw.zip
+          unzip curl.zip
+          mv curl-7.83.1-win64-mingw libcurl
+      - name: Install libcurl (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+      - name: Name required extra libraries (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        shell: bash
+        run: echo 'extra_required_libs=-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32' >> $GITHUB_ENV
+      - name: Name required extra libraries (macOS)
+        if: ${{ matrix.os == 'macos-latest' }}
+        shell: bash
+        run: echo 'extra_required_libs=-lldap -lpthread -lz -lcurses' >> $GITHUB_ENV
+      - name: Name required extra libraries (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        shell: bash
+        run: echo 'extra_required_libs=-ldl -lpthread -lz -lcurses -lm' >> $GITHUB_ENV
+      - name: Configure (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DCURL_LIBRARY=libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+        env:
+          LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
+      - name: Configure (Unix)
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+        env:
+          LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      - name: Archive Build Result
+        uses: a7ul/tar-action@v1.1.0
+        with:
+          command: c
+          files: build
+          outPath: build-${{ matrix.os }}.tar.gz
+      - name: Archive E2E Infrastructure
+        uses: a7ul/tar-action@v1.1.0
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          command: c
+          cwd: tests
+          files: e2e
+          outPath: e2e.tar.gz
+      - name: Archive Support Libraries Infrastructure
+        uses: a7ul/tar-action@v1.1.0
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          command: c
+          files: res
+          outPath: res.tar.gz
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ matrix.os }}-archive
+          path: build-${{ matrix.os }}.tar.gz
+      - name: Upload E2E Testing Infrastructure Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          name: e2e-archive
+          path: e2e.tar.gz
+      - name: Upload Resources Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          name: res
+          path: res.tar.gz
+      - name: Upload LICENSE Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          name: LICENSE
+          path: LICENSE
   test:
     needs: build
     runs-on: ${{ matrix.os }}
