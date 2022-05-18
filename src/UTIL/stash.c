@@ -36,7 +36,7 @@ successful_t adept_install(config_t *config, weak_cstr_t root, weak_cstr_t raw_i
     printf("%s\n", identifier);
 
     download_buffer_t dlbuffer;
-    if(download_to_memory(config->stash, &dlbuffer) == false){   
+    if(download_to_memory(config->stash, &dlbuffer, config->cainfo_file) == false){   
         redprintf("Internet address for stash could not be reached\n");
         goto failure;
     }
@@ -51,7 +51,7 @@ successful_t adept_install(config_t *config, weak_cstr_t root, weak_cstr_t raw_i
     }
 
     free(dlbuffer.bytes);
-    if(download_to_memory(location, &dlbuffer) == false){   
+    if(download_to_memory(location, &dlbuffer, config->cainfo_file) == false){   
         redprintf("Internet address for package location could not be reached\n");
         free(dlbuffer.bytes);
         goto failure;
@@ -60,7 +60,7 @@ successful_t adept_install(config_t *config, weak_cstr_t root, weak_cstr_t raw_i
     blueprintf(" - Copying        ");
     printf("%s\n", identifier);
 
-    if(adept_install_stash(root, dlbuffer.bytes, dlbuffer.length) == false){
+    if(adept_install_stash(config, root, dlbuffer.bytes, dlbuffer.length) == false){
         redprintf("   Failed to install ")
         printf("%s\n", identifier);
         free(dlbuffer.bytes);
@@ -178,7 +178,7 @@ silent_failure:
     return NULL;
 }
 
-static successful_t perform_procedure_command(jsmnh_obj_ctx_t *parent_ctx, weak_cstr_t root, maybe_null_weak_cstr_t host){
+static successful_t perform_procedure_command(config_t *config, jsmnh_obj_ctx_t *parent_ctx, weak_cstr_t root, maybe_null_weak_cstr_t host){
     jsmnh_obj_ctx_t fork;
     if(jsmnh_obj_ctx_subobject(parent_ctx, &fork)) return false;
 
@@ -217,7 +217,7 @@ static successful_t perform_procedure_command(jsmnh_obj_ctx_t *parent_ctx, weak_
         strong_cstr_t to = filename_local(root, file);
         strong_cstr_t url = host ? filename_local(host, from) : strclone(from);
 
-        if(!download(url, to)){
+        if(!download(url, to, config->cainfo_file)){
             redprintf("Failed to download %s\n", url);
             free(to);
             free(url);
@@ -243,7 +243,7 @@ failure:
     return false;
 }
 
-successful_t adept_install_stash(weak_cstr_t root, char *raw_buffer, length_t raw_buffer_length){
+successful_t adept_install_stash(config_t *config, weak_cstr_t root, char *raw_buffer, length_t raw_buffer_length){
     jsmnh_obj_ctx_t ctx;
     if(jsmnh_obj_ctx_easy_init(&ctx, raw_buffer, raw_buffer_length)) goto failure;
 
@@ -267,7 +267,7 @@ successful_t adept_install_stash(weak_cstr_t root, char *raw_buffer, length_t ra
             jsmntok_t procedure_object_token = ctx.tokens.tokens[ctx.token_index++];
 
             for(length_t i = 0; i != (length_t) procedure_object_token.size; i++){
-                if(!perform_procedure_command(&ctx, root, host)){
+                if(!perform_procedure_command(config, &ctx, root, host)){
                     goto failure;
                 }
 

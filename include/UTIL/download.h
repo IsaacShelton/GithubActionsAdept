@@ -27,12 +27,12 @@ typedef struct {
 
 // ---------------- download ----------------
 // Downloads a file, returns whether successful
-successful_t download(weak_cstr_t url, weak_cstr_t destination);
+successful_t download(weak_cstr_t url, weak_cstr_t destination, weak_cstr_t cainfo_file);
 
 // ---------------- download_to_memory ----------------
 // Downloads a file into memory, returns whether successful
 // NOTE: If successful, out_memory->buffer must be freed by the caller
-successful_t download_to_memory(weak_cstr_t url, download_buffer_t *out_memory);
+successful_t download_to_memory(weak_cstr_t url, download_buffer_t *out_memory, weak_cstr_t cainfo_file);
 
 #endif // ADEPT_ENABLE_PACKAGE_MANAGER
 

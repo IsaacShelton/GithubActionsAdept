@@ -15,7 +15,7 @@
 static size_t download_write_data_to_file(void *ptr, size_t size, size_t items, FILE *f);
 static size_t download_write_data_to_memory(void *ptr, size_t size, size_t items, void *buffer_voidptr);
 
-successful_t download(weak_cstr_t url, weak_cstr_t destination){
+successful_t download(weak_cstr_t url, weak_cstr_t destination, weak_cstr_t cainfo_file){
     CURL *curl = curl_easy_init();
     if (curl) {
         FILE *f = fopen(destination, "wb");
@@ -24,6 +24,10 @@ successful_t download(weak_cstr_t url, weak_cstr_t destination){
         curl_easy_setopt(curl, CURLOPT_URL, url);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, download_write_data_to_file);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, f);
+
+        if(cainfo_file){
+            curl_easy_setopt(curl, CURLOPT_CAINFO, cainfo_file);
+        }
 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
@@ -35,7 +39,7 @@ successful_t download(weak_cstr_t url, weak_cstr_t destination){
     return false;
 }
 
-successful_t download_to_memory(weak_cstr_t url, download_buffer_t *out_memory){
+successful_t download_to_memory(weak_cstr_t url, download_buffer_t *out_memory, weak_cstr_t cainfo_file){
     CURL *curl = curl_easy_init();
     if (curl) {
         // Setup output buffer
@@ -52,6 +56,10 @@ successful_t download_to_memory(weak_cstr_t url, download_buffer_t *out_memory){
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, download_write_data_to_memory);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, out_memory);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36");
+
+        if(cainfo_file){
+            curl_easy_setopt(curl, CURLOPT_CAINFO, cainfo_file);
+        }
 
         CURLcode res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);

@@ -116,6 +116,11 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
 
     compiler->root = filename_path(compiler->location);
 
+    #ifdef _WIN32
+    free(compiler->cainfo_file);
+    compiler->cainfo_file = mallocandsprintf("%scurl-ca-bundle.crt", compiler->root);
+    #endif
+
     #ifdef ADEPT_ENABLE_PACKAGE_MANAGER
     {
         // Read persistent config file
@@ -212,7 +217,7 @@ void compiler_init(compiler_t *compiler){
     compiler->objects = malloc(sizeof(object_t*) * 4);
     compiler->objects_length = 0;
     compiler->objects_capacity = 4;
-    config_prepare(&compiler->config);
+    config_prepare(&compiler->config, NULL);
     compiler->traits = TRAIT_NONE;
     compiler->ignore = TRAIT_NONE;
     compiler->output_filename = NULL;

@@ -20,12 +20,14 @@ static successful_t update_installation(config_t *config, download_buffer_t dlbu
 static successful_t process_adept_stash_value(jsmnh_obj_ctx_t *parent_ctx, stash_header_t *out_header);
 #endif
 
-void config_prepare(config_t *config){
+void config_prepare(config_t *config, strong_cstr_t cainfo_file){
     memset(config, 0, sizeof(config_t));
+    config->cainfo_file = cainfo_file;
 }
 
 void config_free(config_t *config){
     free(config->stash);
+    free(config->cainfo_file);
 }
 
 successful_t config_read(config_t *config, weak_cstr_t filename, weak_cstr_t *out_warning){
@@ -121,7 +123,7 @@ successful_t config_read(config_t *config, weak_cstr_t filename, weak_cstr_t *ou
             config_update_last_updated(filename, ctx.fulltext, maybe_last_update);
 
         download_buffer_t dlbuffer;
-        if(download_to_memory(config->stash, &dlbuffer)){
+        if(download_to_memory(config->stash, &dlbuffer, config->cainfo_file)){
             update_installation(config, dlbuffer);
             free(dlbuffer.bytes);
         } else {
