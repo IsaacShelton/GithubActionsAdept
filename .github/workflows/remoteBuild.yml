@@ -374,7 +374,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release: Nightly
-          body: ${{ format("Built {0} - {1}", steps.date.outputs.date, github.sha) }}
+          body: ${{ format('Built {0} - {1}', steps.date.outputs.date, github.sha) }}
           replace: true
           files: >
             stage/x86_64-Windows-adept.exe
