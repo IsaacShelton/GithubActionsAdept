@@ -117,8 +117,8 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
     compiler->root = filename_path(compiler->location);
 
     #ifdef _WIN32
-    free(compiler->cainfo_file);
-    compiler->cainfo_file = mallocandsprintf("%scurl-ca-bundle.crt", compiler->root);
+    free(compiler->config.cainfo_file);
+    compiler->config.cainfo_file = mallocandsprintf("%scurl-ca-bundle.crt", compiler->root);
     #endif
 
     #ifdef ADEPT_ENABLE_PACKAGE_MANAGER
