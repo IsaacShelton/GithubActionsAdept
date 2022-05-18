@@ -186,7 +186,9 @@ jobs:
         run: ctest -C ${{env.BUILD_TYPE}}
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
-        run: python3 e2e-runner.py ../build/adept
+        run: |
+          ls ../build/adept
+          python3 e2e-runner.py ../build/adept
   build-windows-installer:
     needs: test
     runs-on: windows-latest
