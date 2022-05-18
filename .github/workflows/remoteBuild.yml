@@ -187,7 +187,7 @@ jobs:
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
         run: |
-          ls ../build/adept
+          ls ../build/
           python3 e2e-runner.py ../build/adept
   build-windows-installer:
     needs: test
