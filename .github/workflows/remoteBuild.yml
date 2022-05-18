@@ -37,7 +37,7 @@ jobs:
         id: llvm
         with:
           path: ${{github.workspace}}/llvm
-          key: ${{runner.os}}-cache4-llvm-13.0.1-${{ hashFiles('**/*.txt') }}
+          key: ${{runner.os}}-cache-llvm-13.0.1-${{ hashFiles('llvm/**/*.txt') }}
       - name: Download LLVM (Unix)
         if: steps.llvm.outputs.cache-hit != 'true' && matrix.os != 'windows-latest'
         uses: KyleMayes/install-llvm-action@v1
