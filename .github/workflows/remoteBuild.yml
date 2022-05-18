@@ -66,7 +66,6 @@ jobs:
           mkdir build
           cmake -B build -DCMAKE_BUILD_TYPE="Release" -G Ninja
           cmake --build build
-          ls build
       - name: Download and extract libcurl (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         shell: bash
@@ -106,7 +105,6 @@ jobs:
       - name: Build
         run: |
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-          ls build
       - name: Archive Build Result
         uses: a7ul/tar-action@v1.1.0
         with:
@@ -186,9 +184,7 @@ jobs:
         run: ctest -C ${{env.BUILD_TYPE}}
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
-        run: |
-          ls ../build/
-          python3 e2e-runner.py ../build/adept
+        run: python3 e2e-runner.py ../build/adept
   build-windows-installer:
     needs: test
     runs-on: windows-latest
@@ -370,11 +366,15 @@ jobs:
           mv ubuntu-latest/build/adept stage/x86_64-Ubuntu-adept
           mv Adept-nightly-installer.pkg stage/Adept-nightly-installer.pkg
           mv Adept-nightly-installer.exe stage/Adept-nightly-installer.exe
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date '+%B %d %Y%l:%M %p %Z')"
       - name: Release
         uses: IsaacShelton/update-existing-release@v1.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release: Nightly
+          body: ${{ format("Built {0} - {1}", steps.date.outputs.date, github.sha) }}
           replace: true
           files: >
             stage/x86_64-Windows-adept.exe
