@@ -368,10 +368,12 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
         if(argv[arg_index][0] == '-'){
             if(streq(argv[arg_index], "-h") || streq(argv[arg_index], "--help")){
                 show_help(false);
-                return FAILURE;
+                compiler->result_flags |= COMPILER_RESULT_SUCCESS;
+                return ALT_FAILURE;
             } else if(streq(argv[arg_index], "-H") || streq(argv[arg_index], "--help-advanced")){
                 show_help(true);
-                return FAILURE;
+                compiler->result_flags |= COMPILER_RESULT_SUCCESS;
+                return ALT_FAILURE;
             } else if(streq(argv[arg_index], "-p") || streq(argv[arg_index], "--package")){
                 compiler->traits |= COMPILER_MAKE_PACKAGE;
             } else if(streq(argv[arg_index], "-o")){
@@ -589,7 +591,8 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
             }
         } else {
             show_help(false);
-            return FAILURE;
+            compiler->result_flags |= COMPILER_RESULT_SUCCESS;
+            return ALT_FAILURE;
         }
     }
 
