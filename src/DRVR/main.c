@@ -1,7 +1,15 @@
 
+#ifdef _WIN32
+    #include <windows.h>
+#endif // _WIN32
+
 #include "DRVR/compiler.h"
 
 int main(int argc, char **argv){
+    #ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    #endif
+
     #ifdef TRACK_MEMORY_USAGE
     memory_init();
     #endif // TRACK_MEMORY_USAGE
