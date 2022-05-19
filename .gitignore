@@ -2,3 +2,9 @@
 build
 .vscode
 __pycache__
+tests/e2e/src/**/main
+tests/e2e/src/**/pragma
+tests/e2e/src/**/*.o
+tests/e2e/src/**/*.dep
+tests/e2e/src/**/*.exe
+tests/e2e/src/native_linking/*.a

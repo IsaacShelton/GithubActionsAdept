@@ -1,0 +1,11 @@
+
+import basics
+
+func main {
+    define MY_VALUE = 1.234567
+
+    if true {
+        define MY_VALUE = "Hello World"        
+        print(MY_VALUE)
+    }
+}

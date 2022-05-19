@@ -89,5 +89,7 @@ endif()
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/necessities/adept.config DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+execute_process(COMMAND git clone https://github.com/IsaacShelton/AdeptImport ${CMAKE_CURRENT_BINARY_DIR}/import)
+
 enable_testing()
 add_subdirectory(tests)
