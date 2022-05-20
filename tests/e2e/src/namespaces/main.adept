@@ -1,0 +1,40 @@
+
+pragma ignore_unused
+import basics
+
+// Some defintions inside of "things" namespace
+namespace things {
+    struct XThing ()
+    union YThing ()
+    enum ZThing ()
+    alias AThing = things\XThing
+}
+
+// Some more stuff inside "things" namespace
+namespace things {
+    func alias testCallingWithin => things\helloWrapper
+
+    func helloWrapper {
+        things\hello()
+    }
+
+    func hello {
+        print("Hello World")
+    }
+}
+
+// An additional function inside "things" namespace
+func things\testAdditionalThing(){
+    print("Bye World")
+}
+
+func main {
+    things\testCallingWithin()
+
+    x things\XThing
+    y things\YThing
+    z things\ZThing
+    a things\AThing
+
+    things\testAdditionalThing()
+}

@@ -1,0 +1,14 @@
+
+#import <basics>
+#pragma ignore_unused
+
+io:printf :: func alias (String, ..) => printf
+io:printf :: func alias (*ubyte, ...) => printf
+
+main :: func {
+    x : int = 0
+    y: int = 0
+    z :int = 0
+
+    io:printf("Hello World!\n")
+}

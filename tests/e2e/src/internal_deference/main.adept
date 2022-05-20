@@ -1,0 +1,16 @@
+
+pragma ignore_unused
+
+struct Bomb ()
+struct Gift (bomb1, bomb2, bomb3 Bomb)
+struct Present (gift Gift)
+
+foreign printf(*ubyte, ...) int
+
+func __defer__(this *Bomb) {
+    printf('Kaboom!\n')
+}
+
+func main {
+    present Present
+}

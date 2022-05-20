@@ -1,0 +1,22 @@
+
+#if __macos__
+    // THE MAC LIBC IMPLEMENTATION USES
+    external __stdoutp *FILE
+    stdout == __stdoutp
+
+    struct FILE (_opaque 32 usize)
+#elif __windows__
+    #print_error "Windows doesn't have external stdout global"
+    #halt
+#else
+    // SOME LIBC IMPLEMENTATIONS SUCH AS GLIBC USE
+    external stdout *FILE
+    struct FILE (_opaque 32 usize)
+#end
+
+foreign fprintf(*FILE, *ubyte, ...) int
+foreign printf(*ubyte, ...) int
+
+func main {
+    fprintf(stdout, 'Hello World!\n')
+}

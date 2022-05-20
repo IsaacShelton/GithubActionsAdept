@@ -1,0 +1,22 @@
+
+import basics
+
+func alias echo() => newline
+func alias echo(String) => print
+
+func main {
+    echo("Hello World")
+    echo()
+    echo("This is a test")
+    echo(myFunc(1, 2, 3))
+}
+
+func echo(value int){
+    print("Function echo: " + toString(value).reversed())
+}
+
+func alias myFunc => myFunction
+
+func myFunction(a, b, c int) int {
+    return a + b + c
+}

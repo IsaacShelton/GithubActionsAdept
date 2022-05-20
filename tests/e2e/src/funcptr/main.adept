@@ -1,0 +1,34 @@
+
+import 'sys/cmath.adept'
+import "sys/cstdio.adept"
+
+func main(in argc int, in argv **ubyte) int {
+    math_operation func(int, int) int
+    myprint func(*ubyte, ...) int = func &printf
+
+    math_operation = func &sum
+    myprint('>>> 8 + 13 = %d\n', math_operation(8, 13))
+    math_operation(8, 13)
+
+    math_operation = func &product
+    myprint('>>> 8 * 13 = %d\n', math_operation(8, 13))
+    math_operation(8, 13)
+
+    if !math_operation || math_operation == null || !(math_operation && math_operation) {
+        printf('math_operation is null\n')
+    } else {
+        printf('math_operation exists\n')
+    }
+
+    return 0
+}
+
+func sum(in a int, in b int) int {
+    printf('sum was called\n')
+    return a + b
+}
+
+func product(in a int, in b int) int {
+    printf('product was called\n')
+    return a * b
+}
