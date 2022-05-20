@@ -1,4 +1,6 @@
 
+pragma libm
+
 // Examples of malformed foreign function declarations (where argument/types are ambiguous)
 #if false
     foreign calloc(usize, num usize) ptr // Error - 'usize' is ambiguous, did you mean 'usize Type' or '_ usize'?
