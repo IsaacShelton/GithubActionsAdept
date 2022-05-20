@@ -45,22 +45,6 @@ jobs:
         working-directory: ${{github.workspace}}
     name: ${{ format('Build / {0}', matrix.os) }}
     steps:
-      - name: Get workflow dispatch inputs (workflow dispatch)
-        if: github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          echo 'fullName=${{github.event.inputs.fullName}}' >> $GITHUB_ENV
-          echo 'shortVersion=${{github.event.inputs.shortVersion}}' >> $GITHUB_ENV
-          echo 'longVersion=${{github.event.inputs.longVersion}}' >> $GITHUB_ENV
-          echo 'alternativeBinaryName=${{github.event.inputs.alternativeBinaryName}}' >> $GITHUB_ENV
-      - name: Get default inputs (push / pr)
-        if: github.event_name != 'workflow_dispatch'
-        shell: bash
-        run: |
-          echo 'fullName=Adept Nightly' >> $GITHUB_ENV
-          echo 'shortVersion=nightly' >> $GITHUB_ENV
-          echo 'longVersion=nightly' >> $GITHUB_ENV
-          echo 'alternativeBinaryName=adept-nightly' >> $GITHUB_ENV
       - uses: actions/checkout@v3
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -227,6 +211,22 @@ jobs:
     needs: test
     runs-on: windows-latest
     steps:
+      - name: Get workflow dispatch inputs (workflow dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo 'fullName=${{github.event.inputs.fullName}}' >> $GITHUB_ENV
+          echo 'shortVersion=${{github.event.inputs.shortVersion}}' >> $GITHUB_ENV
+          echo 'longVersion=${{github.event.inputs.longVersion}}' >> $GITHUB_ENV
+          echo 'alternativeBinaryName=${{github.event.inputs.alternativeBinaryName}}' >> $GITHUB_ENV
+      - name: Get default inputs (push / pr)
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo 'fullName=Adept Nightly' >> $GITHUB_ENV
+          echo 'shortVersion=nightly' >> $GITHUB_ENV
+          echo 'longVersion=nightly' >> $GITHUB_ENV
+          echo 'alternativeBinaryName=adept-nightly' >> $GITHUB_ENV
       - name: Download Build Artifact
         uses: actions/download-artifact@v3
         with:
@@ -296,6 +296,22 @@ jobs:
     needs: test
     runs-on: macos-latest
     steps:
+      - name: Get workflow dispatch inputs (workflow dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo 'fullName=${{github.event.inputs.fullName}}' >> $GITHUB_ENV
+          echo 'shortVersion=${{github.event.inputs.shortVersion}}' >> $GITHUB_ENV
+          echo 'longVersion=${{github.event.inputs.longVersion}}' >> $GITHUB_ENV
+          echo 'alternativeBinaryName=${{github.event.inputs.alternativeBinaryName}}' >> $GITHUB_ENV
+      - name: Get default inputs (push / pr)
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo 'fullName=Adept Nightly' >> $GITHUB_ENV
+          echo 'shortVersion=nightly' >> $GITHUB_ENV
+          echo 'longVersion=nightly' >> $GITHUB_ENV
+          echo 'alternativeBinaryName=adept-nightly' >> $GITHUB_ENV
       - name: Setup Python
         uses: actions/setup-python@v3.1.2
         with:
@@ -358,6 +374,22 @@ jobs:
     needs: [test, build-windows-installer, build-macos-installer]
     runs-on: ubuntu-latest
     steps:
+      - name: Get workflow dispatch inputs (workflow dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo 'fullName=${{github.event.inputs.fullName}}' >> $GITHUB_ENV
+          echo 'shortVersion=${{github.event.inputs.shortVersion}}' >> $GITHUB_ENV
+          echo 'longVersion=${{github.event.inputs.longVersion}}' >> $GITHUB_ENV
+          echo 'alternativeBinaryName=${{github.event.inputs.alternativeBinaryName}}' >> $GITHUB_ENV
+      - name: Get default inputs (push / pr)
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo 'fullName=Adept Nightly' >> $GITHUB_ENV
+          echo 'shortVersion=nightly' >> $GITHUB_ENV
+          echo 'longVersion=nightly' >> $GITHUB_ENV
+          echo 'alternativeBinaryName=adept-nightly' >> $GITHUB_ENV
       - name: Download Build Artifact (windows-latest)
         uses: actions/download-artifact@v3
         with:
