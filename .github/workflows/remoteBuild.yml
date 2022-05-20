@@ -5,6 +5,23 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      shortVersion:
+        description: The short version number
+        default: "2.7"
+        required: true
+        type: string
+      longVersion:
+        description: The long version number
+        default: "2.7"
+        required: true
+        type: string
+      alternativeBinaryName:
+        description: The alternative binary name
+        default: "adept2-7"
+        required: true
+        type: string
 
 env:
   BUILD_TYPE: Release
@@ -23,6 +40,11 @@ jobs:
         working-directory: ${{github.workspace}}
     name: ${{ format('Build / {0}', matrix.os) }}
     steps:
+      - name: Try get pull request title
+        shell: bash
+        run: |
+          echo ${{ github.event.name }}
+          echo ${{ github.event.type }}
       - uses: actions/checkout@v3
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
