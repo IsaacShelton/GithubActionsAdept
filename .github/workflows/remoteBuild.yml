@@ -43,8 +43,7 @@ jobs:
       - name: Try get pull request title
         shell: bash
         run: |
-          echo ${{ github.event.name }}
-          echo ${{ github.event.type }}
+          echo ${{ github.event_name }}
       - uses: actions/checkout@v3
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
