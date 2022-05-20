@@ -178,6 +178,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
+    name: ${{ format('Test / {0}', matrix.os) }}
     steps:
       - name: Setup Python
         uses: actions/setup-python@v3.1.2
@@ -208,6 +209,7 @@ jobs:
         working-directory: ${{github.workspace}}/e2e
         run: python3 e2e-runner.py ../build/adept
   build-windows-installer:
+    name: Build Installer / windows-latest
     needs: test
     runs-on: windows-latest
     steps:
@@ -293,6 +295,7 @@ jobs:
           name: windows-installer
           path: AdeptWindowsInstaller/Adept-${{env.shortVersion}}-installer.exe
   build-macos-installer:
+    name: Build Installer / macos-latest
     needs: test
     runs-on: macos-latest
     steps:
@@ -371,6 +374,7 @@ jobs:
           name: macos-installer
           path: macOS-installer-builder/build/Adept-${{env.shortVersion}}-installer.pkg
   deploy:
+    name: Deploy
     needs: [test, build-windows-installer, build-macos-installer]
     runs-on: ubuntu-latest
     steps:
@@ -444,7 +448,7 @@ jobs:
         id: date
         run: echo "::set-output name=date::$(date '+%B %d %Y%l:%M %p %Z')"
       - name: Release
-        uses: IsaacShelton/update-existing-release@v1.2.0
+        uses: IsaacShelton/update-existing-release@HEAD
         with:
           token: ${{secrets.GITHUB_TOKEN}}
           release: ${{env.releaseName}}
