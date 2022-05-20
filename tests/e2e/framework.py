@@ -79,4 +79,4 @@ def test(name, args, predicate, expected_exitcode="zero", only_on=None):
         miss = res.returncode != expected_exitcode
     
     if miss:
-        raise CalledProcessError(res.returncode, res.args, res.stdout, res.stderr)
+        raise CalledProcessError(res.returncode, res.args, stdout, stderr)
