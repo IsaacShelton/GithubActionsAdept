@@ -7,6 +7,11 @@ on:
     branches: [ master ]
   workflow_dispatch:
     inputs:
+      fullName:
+        description: The full name of the release
+        default: Adept 2.7
+        required: true
+        type: string
       shortVersion:
         description: The short version number
         default: "2.7"
@@ -14,7 +19,7 @@ on:
         type: string
       longVersion:
         description: The long version number
-        default: "2.7"
+        default: "2.7.0"
         required: true
         type: string
       alternativeBinaryName:
@@ -40,10 +45,22 @@ jobs:
         working-directory: ${{github.workspace}}
     name: ${{ format('Build / {0}', matrix.os) }}
     steps:
-      - name: Try get pull request title
+      - name: Get workflow dispatch inputs (workflow dispatch)
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
-          echo ${{ github.event_name }}
+          echo 'fullName=${{github.event.inputs.fullName}}' >> $GITHUB_ENV
+          echo 'shortVersion=${{github.event.inputs.shortVersion}}' >> $GITHUB_ENV
+          echo 'longVersion=${{github.event.inputs.longVersion}}' >> $GITHUB_ENV
+          echo 'alternativeBinaryName=${{github.event.inputs.alternativeBinaryName}}' >> $GITHUB_ENV
+      - name: Get default inputs (push / pr)
+        if: github.event_name != 'workflow_dispatch'
+        shell: bash
+        run: |
+          echo 'fullName=Adept Nightly' >> $GITHUB_ENV
+          echo 'shortVersion=nightly' >> $GITHUB_ENV
+          echo 'longVersion=nightly' >> $GITHUB_ENV
+          echo 'alternativeBinaryName=adept-nightly' >> $GITHUB_ENV
       - uses: actions/checkout@v3
       - name: Get latest CMake and Ninja
         uses: lukka/get-cmake@latest
@@ -257,14 +274,14 @@ jobs:
       - name: Perform substitutions
         shell: bash
         run: >
-          sed -i AdeptWindowsInstaller/Adept-X.X-installer.iss -e 's/__STAGING_AREA__/..\/stage/g' -e 's/__OUTPUT_DIRECTORY__/./g' -e 's/__FAVICON_DIRECTORY__/..\/res/g' -e 's/adeptX-X/adept-nightly/g' -e 's/X.X/nightly/g' -e 's/{7D143E16-9268-4F20-A0FA-8B30D8B14ECA}/${{steps.guid.outputs.guid}}/g'
+          sed -i AdeptWindowsInstaller/Adept-X.X-installer.iss -e 's/__STAGING_AREA__/..\/stage/g' -e 's/__OUTPUT_DIRECTORY__/./g' -e 's/__FAVICON_DIRECTORY__/..\/res/g' -e 's/adeptX-X/${{github.env.alternativeBinaryName}}/g' -e 's/X.X/${{github.env.shortVersion}}/g' -e 's/{7D143E16-9268-4F20-A0FA-8B30D8B14ECA}/${{steps.guid.outputs.guid}}/g'
       - name: Stage
         shell: bash
         run: |
           mkdir -p stage
           mv build/adept.exe stage/adept.exe
           mv res/necessities/windows/* stage/
-          mv AdeptWindowsInstaller/adeptX-X.bat stage/adept-nightly.bat
+          mv AdeptWindowsInstaller/adeptX-X.bat stage/${{github.env.alternativeBinaryName}}.bat
           mv AdeptConfig/adept.config stage/adept.config
           mv AdeptImport stage/import
           mv LICENSE stage/LICENSE
@@ -274,7 +291,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: windows-installer
-          path: AdeptWindowsInstaller/Adept-nightly-installer.exe
+          path: AdeptWindowsInstaller/Adept-${{github.env.shortVersion}}-installer.exe
   build-macos-installer:
     needs: test
     runs-on: macos-latest
@@ -324,17 +341,19 @@ jobs:
       - name: Stage Installer Files
         working-directory: ${{github.workspace}}/macOS-installer-builder
         run: |
-          sed -i '' -e s/Adept\ 2.6/Adept\ Nightly/g stage/installer/welcome.html
-          sed -i '' -e s/Adept\ 2.6/Adept\ Nightly/g -e s/adept2-6/adept-nightly/g stage/installer/conclusion.html
-          sed -i '' -e s/adept2-6/adept-nightly/g -e s/2.6.0/Nightly/g stage/installer/postinstall
+          sed -i '' -e 's/Adept 2.6/${{github.env.fullName}}/g' stage/installer/welcome.html
+          sed -i '' -e 's/Adept 2.6/${{github.env.fullName}}/g' -e s/adept2-6/${{github.env.alternativeBinaryName}}/g stage/installer/conclusion.html
+          sed -i '' -e s/adept2-6/${{github.env.alternativeBinaryName}}/g -e s/2.6.0/${{github.env.longVersion}}/g stage/installer/postinstall
       - name: Package as Installer
         working-directory: ${{github.workspace}}/macOS-installer-builder
-        run: python3 src/build-installer.py Adept nightly
+        run: |
+          python3 src/build-installer.py Adept ${{github.env.longVersion}}
+          mv build/Adept-${{github.env.longVersion}}-installer.pkg build/Adept-${{github.env.shortVersion}}-installer.pkg
       - name: Upload Installer Archive Artifact
         uses: actions/upload-artifact@v3
         with:
           name: macos-installer
-          path: macOS-installer-builder/build/Adept-nightly-installer.pkg
+          path: macOS-installer-builder/build/Adept-${{github.env.shortVersion}}-installer.pkg
   deploy:
     needs: [test, build-windows-installer, build-macos-installer]
     runs-on: ubuntu-latest
@@ -385,8 +404,8 @@ jobs:
           mv windows-latest/build/adept.exe stage/x86_64-Windows-adept.exe
           mv macos-latest/build/adept stage/arm64-MacOS-adept
           mv ubuntu-latest/build/adept stage/x86_64-Ubuntu-adept
-          mv Adept-nightly-installer.pkg stage/Adept-nightly-installer.pkg
-          mv Adept-nightly-installer.exe stage/Adept-nightly-installer.exe
+          mv Adept-${{github.env.shortVersion}}-installer.pkg stage/Adept-${{github.env.shortVersion}}-installer.pkg
+          mv Adept-${{github.env.shortVersion}}-installer.exe stage/Adept-${{github.env.shortVersion}}-installer.exe
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date '+%B %d %Y%l:%M %p %Z')"
@@ -401,5 +420,5 @@ jobs:
             stage/x86_64-Windows-adept.exe
             stage/arm64-MacOS-adept
             stage/x86_64-Ubuntu-adept
-            stage/Adept-nightly-installer.pkg
-            stage/Adept-nightly-installer.exe
+            stage/Adept-${{github.env.shortVersion}}-installer.pkg
+            stage/Adept-${{github.env.shortVersion}}-installer.exe
