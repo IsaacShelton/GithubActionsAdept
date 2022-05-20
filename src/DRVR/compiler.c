@@ -813,7 +813,7 @@ void show_root(compiler_t *compiler){
 }
 
 strong_cstr_t compiler_get_string(){
-    return mallocandsprintf("Adept %s - Build %s %s CDT", ADEPT_VERSION_STRING, __DATE__, __TIME__);
+    return mallocandsprintf("Adept %s - Built %s %s", ADEPT_VERSION_STRING, __DATE__, __TIME__);
 }
 
 void compiler_add_user_linker_option(compiler_t *compiler, weak_cstr_t option){

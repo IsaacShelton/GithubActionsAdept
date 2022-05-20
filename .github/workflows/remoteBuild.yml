@@ -382,6 +382,7 @@ jobs:
           echo 'shortVersion=${{github.event.inputs.shortVersion}}' >> $GITHUB_ENV
           echo 'longVersion=${{github.event.inputs.longVersion}}' >> $GITHUB_ENV
           echo 'alternativeBinaryName=${{github.event.inputs.alternativeBinaryName}}' >> $GITHUB_ENV
+          echo 'releaseName=${{env.fullName}}' >> $GITHUB_ENV
       - name: Get default inputs (push / pr)
         if: github.event_name != 'workflow_dispatch'
         shell: bash
@@ -390,6 +391,7 @@ jobs:
           echo 'shortVersion=nightly' >> $GITHUB_ENV
           echo 'longVersion=nightly' >> $GITHUB_ENV
           echo 'alternativeBinaryName=adept-nightly' >> $GITHUB_ENV
+          echo 'releaseName=Nightly' >> $GITHUB_ENV
       - name: Download Build Artifact (windows-latest)
         uses: actions/download-artifact@v3
         with:
@@ -442,10 +444,11 @@ jobs:
         id: date
         run: echo "::set-output name=date::$(date '+%B %d %Y%l:%M %p %Z')"
       - name: Release
+        if: github.event_name != 'workflow_dispatch'
         uses: IsaacShelton/update-existing-release@v1.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          release: Nightly
+          release: ${{env.fullName}}
           body: ${{ format('Built {0} - {1}', steps.date.outputs.date, github.sha) }}
           replace: true
           files: >
