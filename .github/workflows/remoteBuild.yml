@@ -382,7 +382,7 @@ jobs:
           echo 'shortVersion=${{github.event.inputs.shortVersion}}' >> $GITHUB_ENV
           echo 'longVersion=${{github.event.inputs.longVersion}}' >> $GITHUB_ENV
           echo 'alternativeBinaryName=${{github.event.inputs.alternativeBinaryName}}' >> $GITHUB_ENV
-          echo 'releaseName=${{env.fullName}}' >> $GITHUB_ENV
+          echo 'releaseName=${{github.event.inputs.fullName}}' >> $GITHUB_ENV
       - name: Get default inputs (push / pr)
         if: github.event_name != 'workflow_dispatch'
         shell: bash
