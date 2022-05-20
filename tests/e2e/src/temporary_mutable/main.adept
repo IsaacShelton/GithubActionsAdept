@@ -1,0 +1,9 @@
+
+#set log_string_deletion true
+
+import '2.3/basics.adept'
+
+func main {
+    name String = "Isaac Shelton".clone()
+    print(("Hello " + name + "!").clone())
+}

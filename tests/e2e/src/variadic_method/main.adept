@@ -1,0 +1,37 @@
+
+import VariadicArray
+import 'sys/cstdio.adept'
+
+struct Dummy (name *ubyte)
+
+func main {
+    printf('sum = %d\n', getDummy().sumEmUp('Thing', 1, 2, 3, 4, 5))
+}
+
+func getDummy Dummy {
+    dummy POD Dummy
+    dummy.name = 'Test'
+    return dummy
+}
+
+func sumEmUp(this *Dummy, thing *ubyte, integers ...) int {
+    printf('%s %s\n', this.name, thing)
+    printf('%p\n', integers.items)
+    printf('%p\n', integers.next)
+    printf('%d\n', integers.length as int)
+    printf('%d\n', integers.index as int)
+    printf('%p\n', integers.types)
+    
+    sum int = 0
+    while integers.hasNext() {
+        if integers.getNextType() != typeinfo long {
+            printf('ERROR: sumEmUp() got non-long value of type %s!\n', integers.types[integers.index].name)
+            return 0
+        }
+
+        x int = integers.readLong()
+        printf('Got value: %d\n', x)
+        sum += x
+    }
+    return sum
+}

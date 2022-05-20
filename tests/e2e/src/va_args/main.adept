@@ -1,0 +1,33 @@
+
+// VARIABLE ARGUMENT HELPERS
+// ap va_list = undef
+// va_start ap
+// va_start(ap)
+// va_end ap
+// va_end(ap)
+// va_arg(ap, Type)
+// va_copy(dest, src)
+
+import basics
+
+func main {
+    print(sizeof va_list)
+    print(addEmUp(5uz, 4, 10, 11, 12, 13))
+}
+
+func addEmUp(count usize, ...) long {
+    ap, ap2 va_list
+    sum long
+
+    va_start ap
+    defer va_end ap
+
+    va_copy(ap2, ap)
+
+    repeat count {
+        sum += va_arg(ap, long)
+        sum += va_arg(ap2, long)
+    }
+
+    return sum
+}

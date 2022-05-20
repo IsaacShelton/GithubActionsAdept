@@ -4,10 +4,10 @@
 #     by Isaac Shelton
 # ---------------------------------------------------------
 
+import os
 import re
 import sys
-import subprocess
-from subprocess import CalledProcessError
+from subprocess import CalledProcessError, Popen, PIPE
 
 RED = "\x1B[31m"
 NORMAL = "\x1B[0m"
@@ -45,11 +45,16 @@ def e2e_framework_run(run_all_tests_function):
         print(GREEN + "All tests passed..." + NORMAL)
         sys.exit(0)
 
-def test(name, args, predicate, expected_exitcode=0):
+def test(name, args, predicate, expected_exitcode="zero", only_on=None):
+    if (only_on == "windows" and os.name != 'nt') or (only_on == "unix" and os.name != 'nt'):
+        print("Skipped test `" + name + "` (not applicable)")
+        return
+
     print("Running test `" + name + "`")
 
     global all_good
-    res = subprocess.run(args, capture_output=True)
+    res = Popen(args, stdout=PIPE, stderr=PIPE)
+    stdout, stderr = res.communicate()
 
     # Remove ANSI excape sequences
     # https://stackoverflow.com/questions/14693701/how-can-i-remove-the-ansi-escape-sequences-from-a-string-in-python
@@ -57,12 +62,21 @@ def test(name, args, predicate, expected_exitcode=0):
     ansi_escape_8bit = re.compile(
         br'(?:\x1B[@-Z\\-_]|[\x80-\x9A\x9C-\x9F]|(?:\x1B\[|\x9B)[0-?]*[ -/]*[@-~])'
     )
-    actual_output = ansi_escape_8bit.sub(b'', res.stdout.replace(b'\r\n', b'\n'))
+    actual_output = ansi_escape_8bit.sub(b'', stderr.replace(b'\r\n', b'\n') + stdout.replace(b'\r\n', b'\n'))
     
     if not predicate(actual_output):
         print(RED + "TEST `" + name + "` FAILED: Output from command " + str(args) + " does not meet predicate." + NORMAL)
         print(RED + "Actual...\n" + NORMAL + str(actual_output))
         all_good = False
     
-    if res.returncode != expected_exitcode:
+    miss = False
+
+    if expected_exitcode is None or expected_exitcode == "zero":
+        miss = res.returncode != 0
+    elif expected_exitcode == "non-zero":
+        miss = res.returncode == 0
+    else:
+        miss = res.returncode != expected_exitcode
+    
+    if miss:
         raise CalledProcessError(res.returncode, res.args, res.stdout, res.stderr)

@@ -1,0 +1,69 @@
+
+#set test_undeclared_method_dialog false
+
+import '2.1/basics.adept'
+
+struct <$T> Printable (value $T)
+
+func print(this *<$T> Printable) {
+    print("%" % this.value)
+}
+
+func print(this *<int> Printable) {
+    print("INTEGER: %" % this.value)
+}
+
+#if test_undeclared_method_dialog
+    func print(this *<$T> Printable, x $T) {
+        print("dummy method, cause $T's must match\n")
+    }
+
+    func print(this *<String> Printable, x $T, y $T) {
+        print("dummy method\n")
+    }
+
+    func print(this *<double> Printable, x $T) {
+        print("dummy method\n")
+    }
+#end
+
+struct RuntimeTest (test_kind int, test_id int)
+struct CustomTestCase (test_kind int, test_id int, name String, occurrences int)
+
+func test(this *$RuntimeTest) {
+    print("test_kind: % test_id: %" % this.test_kind % this.test_id)
+}
+
+func main {
+    test RuntimeTest
+    custom CustomTestCase
+
+    test.test_id = 123
+    test.test_kind = 1
+    
+    custom.test_id = 234
+    custom.test_kind = 2
+
+    test.test()
+    custom.test()
+
+    x <int> Printable
+    x.value = 10
+    x.print()
+
+    y <float> Printable
+    z <String> Printable
+
+    x.value = 21
+    y.value = 3.14159265
+    z.value = "Hello World"
+
+    x.print()
+    y.print()
+
+    #if test_undeclared_method_dialog
+        z.print(1234)
+    #else
+        z.print()
+    #end
+}
