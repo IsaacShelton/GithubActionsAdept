@@ -61,7 +61,7 @@ set(app_source_files
 if(WIN32)
 	set(extra_libs ${EXTRA_REQUIRED_LIBS} -lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32)
 
-	if(ADEPT_LINK_LLVM_STATIC STREQUAL default)
+	if(ADEPT_LINK_LLVM_STATIC STREQUAL "default")
 		set(ADEPT_LINK_LLVM_STATIC On)
 	endif()
 endif()
@@ -69,7 +69,7 @@ endif()
 if(APPLE)
 	set(extra_libs ${EXTRA_REQUIRED_LIBS} -lldap -lpthread -lz -lcurses)
 
-	if(ADEPT_LINK_LLVM_STATIC STREQUAL default)
+	if(ADEPT_LINK_LLVM_STATIC STREQUAL "default")
 		set(ADEPT_LINK_LLVM_STATIC Off)
 	endif()
 endif()
@@ -78,7 +78,7 @@ if(UNIX AND NOT APPLE)
 	# Linux
 	set(extra_libs ${EXTRA_REQUIRED_LIBS} -ldl -lpthread -lz -lcurses -lm)
 
-	if(ADEPT_LINK_LLVM_STATIC STREQUAL default)
+	if(ADEPT_LINK_LLVM_STATIC STREQUAL "default")
 		set(ADEPT_LINK_LLVM_STATIC Off)
 	endif()
 endif()
