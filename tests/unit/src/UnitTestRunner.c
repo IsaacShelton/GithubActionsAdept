@@ -7,6 +7,8 @@ CuSuite *CuSuite_for_ast_expr();
 CuSuite *CuSuite_for_lex();
 
 int RunAllTests(){
+    printf("Running all unit tests:\n");
+
     CuString *output = CuStringNew();
     CuSuite* suite = CuSuiteNew();
 
