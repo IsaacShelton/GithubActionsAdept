@@ -328,7 +328,7 @@ def generate_source(filename):
 def main():
     cwd = os.getcwd()
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    generate_header("token_data.h")
+    generate_header("../../include/TOKEN/token_data.h")
     generate_source("../../src/TOKEN/token_data.c")
     os.chdir(cwd)
 
