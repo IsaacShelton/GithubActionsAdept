@@ -2,23 +2,15 @@ cmake_minimum_required(VERSION 3.0)
 project(Adept)
 
 option(ADEPT_LINK_LLVM_STATIC "Link against LLVM using static libs" default)
+option(ADEPT_ENABLE_ASAN "Enable runtime address-santization / undefined behavior sanitization for debug builds (only available for Apple clang and LLVM clang)" Off)
+option(ADEPT_ENABLE_LSAN "Enable runtime leak-sanitization for debug builds (only available for LLVM clang)" Off)
 
 find_package(LLVM REQUIRED)
 find_package(CURL REQUIRED)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-
-include_directories(${CURL_INCLUDE_DIR})
-link_directories(${CURL_LIBRARY_DIRS})
-add_definitions( -DADEPT_ENABLE_PACKAGE_MANAGER )
-
 message(STATUS "Found Curl ${CURL_LIBRARIES}")
-
-include_directories(${LLVM_INCLUDE_DIRS})
-link_directories(${LLVM_LIBRARY_DIRS})
-
-include_directories(include)
 
 set(core_source_files
 	src/AST/EXPR/ast_expr_free.c src/AST/EXPR/ast_expr_str.c
@@ -45,10 +37,34 @@ set(core_source_files
 	src/UTIL/list.c src/UTIL/memory.c src/UTIL/search.c src/UTIL/stash.c src/UTIL/string_builder.c
 	src/UTIL/string_list.c src/UTIL/string.c src/UTIL/util.c)
 
+add_executable(adept)
+target_include_directories(adept PRIVATE include ${CURL_INCLUDE_DIR} ${LLVM_INCLUDE_DIRS})
+target_link_directories(adept PRIVATE ${LLVM_LIBRARY_DIRS} ${LLVM_LIBRARY_DIRS})
+target_compile_definitions(adept PRIVATE ADEPT_ENABLE_PACKAGE_MANAGER)
+
+add_library(libadept STATIC)
+target_include_directories(libadept PRIVATE include ${CURL_INCLUDE_DIR} ${LLVM_INCLUDE_DIRS})
+target_link_directories(libadept PRIVATE ${CURL_LIBRARY_DIRS} ${LLVM_LIBRARY_DIRS})
+target_compile_definitions(libadept PRIVATE ADEPT_ENABLE_PACKAGE_MANAGER)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	message(STATUS "Including debug files")
 	list(APPEND core_source_files src/DRVR/debug.c)
 	add_definitions( -DENABLE_DEBUG_FEATURES )
+
+	if(ADEPT_ENABLE_ASAN)
+		target_compile_options(adept PRIVATE -fsanitize=address,undefined)
+		target_link_options(adept PRIVATE -fsanitize=address,undefined)
+		target_compile_options(libadept PRIVATE -fsanitize=address,undefined)
+		target_link_options(libadept PRIVATE -fsanitize=address,undefined)
+	endif()
+
+	if(ADEPT_ENABLE_LSAN)
+		target_compile_options(adept PRIVATE -fsanitize=leak)
+		target_link_options(adept PRIVATE -fsanitize=leak)
+		target_compile_options(libadept PRIVATE -fsanitize=leak)
+		target_link_options(libadept PRIVATE -fsanitize=leak)
+	endif()
 else()
 	message(STATUS "Excluding debug files")
 endif()
@@ -58,12 +74,19 @@ set(app_source_files
 	src/DRVR/main.c
 )
 
+target_sources(adept PRIVATE ${app_source_files})
+target_sources(libadept PRIVATE ${app_source_files})
+
 if(WIN32)
 	set(extra_libs ${EXTRA_REQUIRED_LIBS} -lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32)
 
 	if(ADEPT_LINK_LLVM_STATIC STREQUAL "default")
 		set(ADEPT_LINK_LLVM_STATIC On)
 	endif()
+
+	set(CMAKE_RC_FLAGS -J rc -O coff)
+	set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -D__USE_MINGW_ANSI_STDIO)
+	target_sources(adept PRIVATE res/icon.rc)
 endif()
 
 if(APPLE)
@@ -83,8 +106,40 @@ if(UNIX AND NOT APPLE)
 	endif()
 endif()
 
-add_executable(adept ${app_source_files})
-add_library(libadept STATIC ${core_source_files})
+set(insight_out_dir ${CMAKE_SOURCE_DIR}/INSIGHT)
+add_custom_target(
+	insight
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${insight_out_dir}
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${insight_out_dir}/include
+	COMMAND ${CMAKE_COMMAND} -E make_directory ${insight_out_dir}/src
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/AST ${insight_out_dir}/include/AST
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/BRIDGE ${insight_out_dir}/include/BRIDGE
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/LEX ${insight_out_dir}/include/LEX
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/TOKEN ${insight_out_dir}/include/TOKEN
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/PARSE ${insight_out_dir}/include/PARSE
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/UTIL ${insight_out_dir}/include/UTIL
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/DRVR/compiler.h ${insight_out_dir}/include/DRVR/compiler.h
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/DRVR/config.h ${insight_out_dir}/include/DRVR/config.h
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/DRVR/object.h ${insight_out_dir}/include/DRVR/object.h
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/AST ${insight_out_dir}/src/AST
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/BRIDGE ${insight_out_dir}/src/BRIDGE
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/LEX ${insight_out_dir}/src/LEX
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/TOKEN ${insight_out_dir}/src/TOKEN
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/PARSE ${insight_out_dir}/src/PARSE
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/UTIL ${insight_out_dir}/src/UTIL
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/compiler.c ${insight_out_dir}/src/DRVR/compiler.c
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/config.c ${insight_out_dir}/src/DRVR/config.c
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/object.c ${insight_out_dir}/src/DRVR/object.c
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/include/UTIL/__insight.h ${insight_out_dir}/insight.h
+	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/src/UTIL/__insight_Makefile ${insight_out_dir}/Makefile
+	COMMENT Insight files copied into ${insight_out_dir}
+	VERBATIM
+)
+
+add_custom_target(
+	generate
+	COMMAND python3 include/TOKEN/generate_c.py
+)
 
 if(ADEPT_LINK_LLVM_STATIC)
 	message(STATUS "Linking against LLVM statically")

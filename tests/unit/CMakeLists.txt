@@ -6,9 +6,9 @@ add_executable(UnitTestRunner framework/CuTest.c
     src/lex.test.c
     src/UnitTestRunner.c)
 
-target_include_directories(UnitTestRunner PUBLIC include framework)
-target_link_directories(UnitTestRunner PUBLIC ${CURL_LIBRARY_DIRS})
-target_link_directories(UnitTestRunner PUBLIC ${LLVM_LIBRARY_DIRS})
+target_include_directories(UnitTestRunner PRIVATE ../../include include framework ${CURL_INCLUDE_DIR} ${LLVM_INCLUDE_DIRS})
+target_link_directories(UnitTestRunner PRIVATE ${CURL_LIBRARY_DIRS})
+target_link_directories(UnitTestRunner PRIVATE ${LLVM_LIBRARY_DIRS})
 
 message(STATUS "Linking against LLVM statically")
 message(STATUS "${LLVM_LIBRARY_DIRS}/../bin/llvm-config")
