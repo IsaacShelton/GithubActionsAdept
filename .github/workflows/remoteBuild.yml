@@ -191,11 +191,10 @@ jobs:
           command: x
           files: build-${{ matrix.os }}.tar.gz
       - name: Unit Test (Windows)
-        if: ${{ matrix.os == 'windows-latest '}}
-        run: ${{github.workspace}}/build/tests/unit/UnitTestRunner.exe
-      - name: Unit Test (Unix)
-        if: ${{ matrix.os != 'windows-latest '}}
-        run: ${{github.workspace}}/build/tests/unit/UnitTestRunner
+        shell: bash
+        run: |
+          ls ${{github.workspace}}/build/tests/unit
+          ${{github.workspace}}/build/tests/unit/UnitTestRunner
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
         run: python3 e2e-runner.py ../build/adept
