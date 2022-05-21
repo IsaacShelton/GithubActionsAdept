@@ -2,7 +2,7 @@
 #include <stddef.h>
 
 #include "AST/ast_type.h"
-#include "BRIDGE/rtti.h"
+#include "BRIDGEIR/rtti.h"
 #include "BRIDGE/type_table.h"
 #include "DRVR/object.h"
 #include "IR/ir.h"

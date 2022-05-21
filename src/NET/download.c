@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "UTIL/color.h"
-#include "UTIL/download.h"
+#include "NET/download.h"
 #include "UTIL/ground.h"
 #include "UTIL/util.h" // IWYU pragma: keep
 

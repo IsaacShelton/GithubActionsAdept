@@ -8,7 +8,7 @@
 #include "AST/ast.h"
 #include "BKEND/ir_to_c.h"
 #include "DRVR/compiler.h"
-#include "DRVR/debug.h"
+#include "DBG/debug.h"
 #include "DRVR/object.h"
 #include "IR/ir.h"
 #include "UTIL/color.h"

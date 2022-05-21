@@ -43,7 +43,7 @@
 
 #ifndef ADEPT_INSIGHT_BUILD
 #include "BKEND/backend.h"
-#include "DRVR/debug.h"
+#include "DBG/debug.h"
 #include "INFER/infer.h"
 #include "IR/ir.h"
 #include "IRGEN/ir_gen.h"
@@ -51,7 +51,7 @@
 #endif
 
 #ifdef ADEPT_ENABLE_PACKAGE_MANAGER
-#include "UTIL/stash.h"
+#include "NET/stash.h"
 #endif
 
 errorcode_t compiler_run(compiler_t *compiler, int argc, char **argv){

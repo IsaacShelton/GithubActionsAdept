@@ -7,7 +7,6 @@
 
 #include "DRVR/config.h"
 #include "UTIL/color.h"
-#include "UTIL/download.h"
 #include "UTIL/filename.h"
 #include "UTIL/ground.h"
 #include "UTIL/jsmn_helper.h"
@@ -15,6 +14,7 @@
 static successful_t config_read_adept_config_value(config_t *config, jsmnh_obj_ctx_t *parent_ctx, jsmntok_t *out_maybe_last_update);
 
 #ifdef ADEPT_ENABLE_PACKAGE_MANAGER
+#include "NET/download.h" // IWYU pragma: keep
 static successful_t config_update_last_updated(weak_cstr_t filename, jsmnh_buffer_t buffer, jsmntok_t last_update);
 static successful_t update_installation(config_t *config, download_buffer_t dlbuffer);
 static successful_t process_adept_stash_value(jsmnh_obj_ctx_t *parent_ctx, stash_header_t *out_header);

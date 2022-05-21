@@ -8,7 +8,7 @@
 #include "LEX/token.h"
 #include "UTIL/color.h"
 #include "UTIL/ground.h"
-#include "DRVR/debug.h"
+#include "DBG/debug.h"
 #include "DRVR/compiler.h"
 #include "IR/ir.h"
 #include "IR/ir_dump.h"

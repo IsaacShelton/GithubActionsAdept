@@ -21,7 +21,7 @@ set(core_source_files
 	src/AST/ast_constant.c src/AST/ast_expr.c src/AST/ast_layout.c
 	src/AST/ast_poly_catalog.c src/AST/ast.c
 	src/AST/meta_directives.c src/BKEND/backend.c src/BKEND/ir_to_c.c src/BKEND/ir_to_llvm.c src/BKEND/ir_to_llvm_impl.c src/BRIDGE/any.c
-	src/BRIDGE/bridge.c src/BRIDGE/funcpair.c src/BRIDGE/type_table.c src/BRIDGE/rtti.c src/DRVR/compiler.c
+	src/BRIDGE/bridge.c src/BRIDGEIR/funcpair.c src/BRIDGE/type_table.c src/BRIDGEIR/rtti.c src/DRVR/compiler.c
 	src/DRVR/config.c src/DRVR/object.c src/INFER/infer.c
 	src/IR/ir_pool.c src/IR/ir_proc_map.c src/IR/ir_proc_query.c src/IR/ir_type.c src/IR/ir_type_spec.c src/IR/ir_value_str.c
 	src/IR/ir.c src/IR/ir_dump.c src/IR/ir_func_endpoint.c src/IR/ir_lowering.c
@@ -32,9 +32,9 @@ set(core_source_files
 	src/PARSE/parse_dependency.c src/PARSE/parse_enum.c src/PARSE/parse_expr.c src/PARSE/parse_func.c
 	src/PARSE/parse_global.c src/PARSE/parse_meta.c src/PARSE/parse_namespace.c src/PARSE/parse_pragma.c
 	src/PARSE/parse_stmt.c src/PARSE/parse_struct.c src/PARSE/parse_type.c src/PARSE/parse_util.c
-	src/PARSE/parse.c src/TOKEN/token_data.c src/UTIL/color.c src/UTIL/datatypes.c src/UTIL/download.c
+	src/PARSE/parse.c src/TOKEN/token_data.c src/UTIL/color.c src/UTIL/datatypes.c src/NET/download.c
 	src/UTIL/builtin_type.c src/UTIL/filename.c src/UTIL/ground.c src/UTIL/hash.c src/UTIL/jsmn_helper.c src/UTIL/levenshtein.c
-	src/UTIL/list.c src/UTIL/memory.c src/UTIL/search.c src/UTIL/stash.c src/UTIL/string_builder.c
+	src/UTIL/list.c src/UTIL/memory.c src/UTIL/search.c src/NET/stash.c src/UTIL/string_builder.c
 	src/UTIL/string_list.c src/UTIL/string.c src/UTIL/util.c)
 
 add_executable(adept)
@@ -49,7 +49,7 @@ target_compile_definitions(libadept PRIVATE ADEPT_ENABLE_PACKAGE_MANAGER)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	message(STATUS "Including debug files")
-	list(APPEND core_source_files src/DRVR/debug.c)
+	list(APPEND core_source_files src/DBG/debug.c)
 	add_definitions( -DENABLE_DEBUG_FEATURES )
 
 	if(ADEPT_ENABLE_ASAN)
@@ -71,7 +71,7 @@ endif()
 
 set(app_source_files
 	${core_source_files}
-	src/DRVR/main.c
+	src/MAIN/main.c
 )
 
 target_sources(adept PRIVATE ${app_source_files})
@@ -84,8 +84,8 @@ if(WIN32)
 		set(ADEPT_LINK_LLVM_STATIC On)
 	endif()
 
-	set(CMAKE_RC_FLAGS -J rc -O coff)
-	set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -D__USE_MINGW_ANSI_STDIO)
+	set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -J rc -O coff")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__USE_MINGW_ANSI_STDIO")
 	target_sources(adept PRIVATE res/icon.rc)
 endif()
 
@@ -112,26 +112,25 @@ add_custom_target(
 	COMMAND ${CMAKE_COMMAND} -E make_directory ${insight_out_dir}
 	COMMAND ${CMAKE_COMMAND} -E make_directory ${insight_out_dir}/include
 	COMMAND ${CMAKE_COMMAND} -E make_directory ${insight_out_dir}/src
+
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/AST ${insight_out_dir}/include/AST
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/BRIDGE ${insight_out_dir}/include/BRIDGE
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/DRVR ${insight_out_dir}/include/DRVR
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/LEX ${insight_out_dir}/include/LEX
-	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/TOKEN ${insight_out_dir}/include/TOKEN
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/PARSE ${insight_out_dir}/include/PARSE
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/TOKEN ${insight_out_dir}/include/TOKEN
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/include/UTIL ${insight_out_dir}/include/UTIL
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/DRVR/compiler.h ${insight_out_dir}/include/DRVR/compiler.h
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/DRVR/config.h ${insight_out_dir}/include/DRVR/config.h
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/DRVR/object.h ${insight_out_dir}/include/DRVR/object.h
+
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/AST ${insight_out_dir}/src/AST
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/BRIDGE ${insight_out_dir}/src/BRIDGE
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/DRVR ${insight_out_dir}/src/DRVR
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/LEX ${insight_out_dir}/src/LEX
-	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/TOKEN ${insight_out_dir}/src/TOKEN
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/PARSE ${insight_out_dir}/src/PARSE
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/TOKEN ${insight_out_dir}/src/TOKEN
 	COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/UTIL ${insight_out_dir}/src/UTIL
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/compiler.c ${insight_out_dir}/src/DRVR/compiler.c
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/config.c ${insight_out_dir}/src/DRVR/config.c
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/object.c ${insight_out_dir}/src/DRVR/object.c
-	COMMAND ${CMAKE_COMMAND} -E rename ${insight_out_dir}/include/UTIL/__insight.h ${insight_out_dir}/insight.h
-	COMMAND ${CMAKE_COMMAND} -E rename ${insight_out_dir}/src/UTIL/__insight_Makefile ${insight_out_dir}/Makefile
+
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/include/UTIL/__insight.h ${insight_out_dir}/insight.h
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/UTIL/__insight_Makefile ${insight_out_dir}/Makefile
 	COMMENT Insight files copied into ${insight_out_dir}
 	VERBATIM
 )

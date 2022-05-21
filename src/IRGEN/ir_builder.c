@@ -13,7 +13,7 @@
 #include "AST/ast_poly_catalog.h"
 #include "AST/ast_type.h"
 #include "BRIDGE/bridge.h"
-#include "BRIDGE/funcpair.h"
+#include "BRIDGEIR/funcpair.h"
 #include "BRIDGE/type_table.h"
 #include "DRVR/compiler.h"
 #include "DRVR/object.h"

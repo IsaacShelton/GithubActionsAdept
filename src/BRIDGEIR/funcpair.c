@@ -1,5 +1,5 @@
 
-#include "BRIDGE/funcpair.h"
+#include "BRIDGEIR/funcpair.h"
 
 void optional_funcpair_set(optional_funcpair_t *result, bool has, funcid_t ast_func_id, funcid_t ir_func_id, object_t *object){
     result->has = has;

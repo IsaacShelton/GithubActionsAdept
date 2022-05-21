@@ -7,7 +7,6 @@ extern "C" {
 #endif
 
 #include "UTIL/ground.h"
-#include "UTIL/download.h"
 
 enum update_schedule {
     UPDATE_SCHEDULE_NEVER,

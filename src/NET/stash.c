@@ -19,11 +19,11 @@
 
 #include "DRVR/config.h"
 #include "UTIL/color.h"
-#include "UTIL/download.h"
+#include "NET/download.h"
 #include "UTIL/filename.h"
 #include "UTIL/ground.h"
 #include "UTIL/jsmn_helper.h"
-#include "UTIL/stash.h"
+#include "NET/stash.h"
 #include "UTIL/string.h"
 
 successful_t adept_install(config_t *config, weak_cstr_t root, weak_cstr_t raw_identifier){
