@@ -2,8 +2,6 @@
 #include "CuTest.h"
 #include "CuTestExtras.h"
 
-/*
-
 #include "UTIL/ground.h"
 #include "UTIL/util.h"
 #include "UTIL/string.h"
@@ -107,12 +105,5 @@ CuSuite *CuSuite_for_lex(){
     CuSuite *suite = CuSuiteNew();
     SUITE_ADD_TEST(suite, TEST_lex_1);
     SUITE_ADD_TEST(suite, TEST_lex_2);
-    return suite;
-}
-
-*/
-
-CuSuite *CuSuite_for_lex(){
-    CuSuite *suite = CuSuiteNew();
     return suite;
 }

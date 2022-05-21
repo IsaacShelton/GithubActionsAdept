@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(Adept)
 
-option(ADEPT_LINK_LLVM_STATIC "Link against LLVM using static libs" OFF)
+option(ADEPT_LINK_LLVM_STATIC "Link against LLVM using static libs" default)
 
 find_package(LLVM REQUIRED)
 find_package(CURL REQUIRED)
@@ -58,6 +58,31 @@ set(app_source_files
 	src/DRVR/main.c
 )
 
+if(WIN32)
+	set(extra_libs ${EXTRA_REQUIRED_LIBS} -lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32)
+
+	if(ADEPT_LINK_LLVM_STATIC STREQUAL default)
+		set(ADEPT_LINK_LLVM_STATIC On)
+	endif()
+endif()
+
+if(APPLE)
+	set(extra_libs ${EXTRA_REQUIRED_LIBS} -lldap -lpthread -lz -lcurses)
+
+	if(ADEPT_LINK_LLVM_STATIC STREQUAL default)
+		set(ADEPT_LINK_LLVM_STATIC Off)
+	endif()
+endif()
+
+if(UNIX AND NOT APPLE)
+	# Linux
+	set(extra_libs ${EXTRA_REQUIRED_LIBS} -ldl -lpthread -lz -lcurses -lm)
+
+	if(ADEPT_LINK_LLVM_STATIC STREQUAL default)
+		set(ADEPT_LINK_LLVM_STATIC Off)
+	endif()
+endif()
+
 add_executable(adept ${app_source_files})
 add_library(libadept STATIC ${core_source_files})
 
@@ -65,7 +90,7 @@ if(ADEPT_LINK_LLVM_STATIC)
 	message(STATUS "Linking against LLVM statically")
 	message(STATUS "${LLVM_LIBRARY_DIRS}/../bin/llvm-config")
 	execute_process(COMMAND ${LLVM_LIBRARY_DIRS}/../bin/llvm-config --link-static --libs OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE llvm_static_libs)
-	target_link_libraries(adept ${CURL_LIBRARIES} ${llvm_static_libs} ${EXTRA_REQUIRED_LIBS})
+	target_link_libraries(adept ${CURL_LIBRARIES} ${llvm_static_libs} ${extra_libs})
 else()
 	message(STATUS "Linking against LLVM dynamically")
 	target_link_libraries(adept ${CURL_LIBRARIES} -lLLVM)

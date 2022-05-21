@@ -100,28 +100,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev
-      - name: Name required extra libraries (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
-        shell: bash
-        run: echo 'extra_required_libs=-lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32' >> $GITHUB_ENV
-      - name: Name required extra libraries (macOS)
-        if: ${{ matrix.os == 'macos-latest' }}
-        shell: bash
-        run: echo 'extra_required_libs=-lldap -lpthread -lz -lcurses' >> $GITHUB_ENV
-      - name: Name required extra libraries (Ubuntu)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        shell: bash
-        run: echo 'extra_required_libs=-ldl -lpthread -lz -lcurses -lm' >> $GITHUB_ENV
       - name: Configure (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
       - name: Configure (Unix)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
-          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -DEXTRA_REQUIRED_LIBS="${{env.extra_required_libs}}" -B ${{github.workspace}}/build -G Ninja
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/lib/cmake
       - name: Build
