@@ -190,8 +190,7 @@ jobs:
         with:
           command: x
           files: build-${{ matrix.os }}.tar.gz
-      - name: Unit Test (Unix)
-        if: ${{ matrix.os != 'windows-latest' }}
+      - name: Unit Test
         shell: bash
         run: build/tests/unit/UnitTestRunner
       - name: E2E Test
