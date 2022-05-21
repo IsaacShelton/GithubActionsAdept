@@ -6,12 +6,12 @@ add_executable(UnitTestRunner framework/CuTest.c
     src/lex.test.c
     src/UnitTestRunner.c)
 
-target_include_directories(UnitTestRunner PRIVATE include framework)
+target_include_directories(UnitTestRunner PRIVATE include framework ${CURL_INCLUDE_DIR} ${LLVM_INCLUDE_DIRS})
 
 message(STATUS "Linking against LLVM statically")
 message(STATUS "${LLVM_LIBRARY_DIRS}/../bin/llvm-config")
 execute_process(COMMAND ${LLVM_LIBRARY_DIRS}/../bin/llvm-config --link-static --libs OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE llvm_static_libs)
-target_link_libraries(UnitTestRunner libadept)
+target_link_libraries(UnitTestRunner libadept ${CURL_LIBRARIES} ${llvm_static_libs} ${extra_libs})
 
 if(WIN32)
     file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/../../res/necessities/windows/crt2.o DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
