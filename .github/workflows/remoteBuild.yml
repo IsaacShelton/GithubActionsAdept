@@ -191,8 +191,7 @@ jobs:
           command: x
           files: build-${{ matrix.os }}.tar.gz
       - name: Unit Test
-        working-directory: build
-        run: ctest -C ${{env.BUILD_TYPE}}
+        run: ${{github.workspace}}/build/tests/unit/UnitTestRunner
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
         run: python3 e2e-runner.py ../build/adept
