@@ -10,11 +10,10 @@ int RunAllTests(){
     CuString *output = CuStringNew();
     CuSuite* suite = CuSuiteNew();
 
+    CuSuiteAddSuite(suite, CuSuite_for_ast_expr());
     CuSuiteAddSuite(suite, CuSuite_for_lex());
 
-    printf("Running...\n");
     CuSuiteRun(suite);
-    printf("Done Running...\n");
     CuSuiteSummary(suite, output);
     CuSuiteDetails(suite, output);
     printf("%s\n", output->buffer);
