@@ -130,8 +130,8 @@ add_custom_target(
 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/compiler.c ${insight_out_dir}/src/DRVR/compiler.c
 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/config.c ${insight_out_dir}/src/DRVR/config.c
 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/src/DRVR/object.c ${insight_out_dir}/src/DRVR/object.c
-	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/include/UTIL/__insight.h ${insight_out_dir}/insight.h
-	COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_SOURCE_DIR}/src/UTIL/__insight_Makefile ${insight_out_dir}/Makefile
+	COMMAND ${CMAKE_COMMAND} -E rename ${insight_out_dir}/include/UTIL/__insight.h ${insight_out_dir}/insight.h
+	COMMAND ${CMAKE_COMMAND} -E rename ${insight_out_dir}/src/UTIL/__insight_Makefile ${insight_out_dir}/Makefile
 	COMMENT Insight files copied into ${insight_out_dir}
 	VERBATIM
 )
