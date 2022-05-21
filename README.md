@@ -1,2 +1,2 @@
 # GithubActionsAdept
-Work-in-progress CI/CD system for the Adept Repository
+Repository for working on CI/CD system for the Adept Repository
