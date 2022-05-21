@@ -39,7 +39,7 @@ set(core_source_files
 
 add_executable(adept)
 target_include_directories(adept PRIVATE include ${CURL_INCLUDE_DIR} ${LLVM_INCLUDE_DIRS})
-target_link_directories(adept PRIVATE ${LLVM_LIBRARY_DIRS} ${LLVM_LIBRARY_DIRS})
+target_link_directories(adept PRIVATE ${CURL_LIBRARY_DIRS} ${LLVM_LIBRARY_DIRS})
 target_compile_definitions(adept PRIVATE ADEPT_ENABLE_PACKAGE_MANAGER)
 
 add_library(libadept STATIC)
