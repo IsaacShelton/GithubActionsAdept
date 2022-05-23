@@ -427,8 +427,10 @@ jobs:
         with:
           repository: 'AdeptLanguage/AdeptImport'
       - name: Package as Standalone for Ubuntu
+        working-directory: ${{github.workspace}}
         run: |
           mkdir -p adept-${{env.shortVersion}}-standalone
+          ls -la
           cp ubuntu-latest/build/adept adept-${{env.shortVersion}}-standalone/adept
           mv AdeptConfig/adept.config adept-${{env.shortVersion}}-standalone/adept.config
           mv AdeptImport adept-${{env.shortVersion}}-standalone/import
