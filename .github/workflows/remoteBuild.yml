@@ -474,9 +474,6 @@ jobs:
       - name: Stage
         run: |
           mkdir stage
-          mv windows-latest/build/adept.exe stage/without-infrastructure-x86_64-Windows-adept.exe
-          mv macos-latest/build/adept stage/without-infrastructure-arm64-MacOS-adept
-          mv ubuntu-latest/build/adept stage/without-infrastructure-x86_64-Ubuntu-adept
           mv Adept-${{env.shortVersion}}-installer.pkg stage/Installer-MacOS-arm64-Adept-${{env.shortVersion}}.pkg
           mv Adept-${{env.shortVersion}}-installer.exe stage/Installer-Windows-x86_64-Adept-${{env.shortVersion}}.exe
           mv Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip stage/Standalone-Windows-x86_64-Adept-${{env.shortVersion}}.zip
@@ -499,6 +496,3 @@ jobs:
             stage/Standalone-MacOS-arm64-Adept-${{env.shortVersion}}.zip
             stage/Standalone-Ubuntu-x86_64-Adept-${{env.shortVersion}}.zip
             stage/Standalone-Windows-x86_64-Adept-${{env.shortVersion}}.zip
-            stage/without-infrastructure-x86_64-Windows-adept.exe
-            stage/without-infrastructure-arm64-MacOS-adept
-            stage/without-infrastructure-x86_64-Ubuntu-adept
