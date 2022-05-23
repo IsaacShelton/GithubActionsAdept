@@ -429,7 +429,7 @@ jobs:
       - name: Package as Standalone for Ubuntu
         run: |
           mkdir -p adept-${{env.shortVersion}}-standalone
-          cd adept-${{env.shortVersion}}-standalone/adept
+          cd adept-${{env.shortVersion}}-standalone
           cp ../ubuntu-latest/build/adept adept
           mv ../AdeptConfig/adept.config adept.config
           mv ../AdeptImport import
