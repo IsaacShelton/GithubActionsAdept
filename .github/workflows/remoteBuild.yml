@@ -471,6 +471,7 @@ jobs:
           mv AdeptConfig/adept.config adept-${{env.shortVersion}}-standalone/adept.config
           mv AdeptImport adept-${{env.shortVersion}}-standalone/import
           ls adept-${{env.shortVersion}}-standalone
+          dpkg -L libcurl4
           zip -r Adept-${{env.shortVersion}}-standalone-x86_64-Ubuntu.zip adept-${{env.shortVersion}}-standalone
       - name: Stage
         run: |
