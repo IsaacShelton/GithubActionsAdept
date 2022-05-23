@@ -290,7 +290,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: windows-standalone
-          path: AdeptWindowsInstaller/Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip
+          path: Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip
   build-macos-installer:
     name: Installer / macos-latest
     needs: test
