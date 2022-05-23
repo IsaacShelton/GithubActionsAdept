@@ -427,23 +427,6 @@ jobs:
         with:
           repository: 'AdeptLanguage/AdeptImport'
           path: 'AdeptImport'
-      - name: Package as Standalone for Ubuntu
-        working-directory: ${{github.workspace}}
-        run: |
-          mkdir -p adept-${{env.shortVersion}}-standalone
-          ls -la
-          cp ubuntu-latest/build/adept adept-${{env.shortVersion}}-standalone/adept
-          mv AdeptConfig/adept.config adept-${{env.shortVersion}}-standalone/adept.config
-          mv AdeptImport adept-${{env.shortVersion}}-standalone/import
-          echo usr lib
-          ls -la /usr/lib | grep libcurl
-          echo usr lib64
-          ls -la /usr/lib64 | grep libcurl
-          echo lib
-          ls -la /lib | grep libcurl
-          echo lib64
-          ls -la /lib64 | grep libcurl
-          zip -r Adept-${{env.shortVersion}}-standalone-x86_64-Ubuntu.zip adept-${{env.shortVersion}}-standalone
       - name: Download Windows Installer Artifact
         uses: actions/download-artifact@v3
         with:
@@ -480,6 +463,23 @@ jobs:
           command: x
           cwd: ubuntu-latest
           files: build-ubuntu-latest.tar.gz
+      - name: Package as Standalone for Ubuntu
+        working-directory: ${{github.workspace}}
+        run: |
+          mkdir -p adept-${{env.shortVersion}}-standalone
+          ls -la
+          cp ubuntu-latest/build/adept adept-${{env.shortVersion}}-standalone/adept
+          mv AdeptConfig/adept.config adept-${{env.shortVersion}}-standalone/adept.config
+          mv AdeptImport adept-${{env.shortVersion}}-standalone/import
+          echo usr lib
+          ls -la /usr/lib | grep libcurl
+          echo usr lib64
+          ls -la /usr/lib64 | grep libcurl
+          echo lib
+          ls -la /lib | grep libcurl
+          echo lib64
+          ls -la /lib64 | grep libcurl
+          zip -r Adept-${{env.shortVersion}}-standalone-x86_64-Ubuntu.zip adept-${{env.shortVersion}}-standalone
       - name: Stage
         run: |
           mkdir stage
