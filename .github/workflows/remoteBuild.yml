@@ -474,11 +474,11 @@ jobs:
       - name: Stage
         run: |
           mkdir stage
-          mv Adept-${{env.shortVersion}}-installer.pkg stage/Installer-MacOS-arm64-Adept-${{env.shortVersion}}.pkg
-          mv Adept-${{env.shortVersion}}-installer.exe stage/Installer-Windows-x86_64-Adept-${{env.shortVersion}}.exe
-          mv Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip stage/Standalone-Windows-x86_64-Adept-${{env.shortVersion}}.zip
-          mv Adept-${{env.shortVersion}}-standalone-arm64-MacOS.zip stage/Standalone-MacOS-arm64-Adept-${{env.shortVersion}}.zip
-          mv Adept-${{env.shortVersion}}-standalone-x86_64-Ubuntu.zip stage/Standalone-Ubuntu-x86_64-Adept-${{env.shortVersion}}.zip
+          mv Adept-${{env.shortVersion}}-installer.pkg stage/MacOS-arm64-Installer-Adept-${{env.shortVersion}}.pkg
+          mv Adept-${{env.shortVersion}}-installer.exe stage/Windows-x86_64-Installer-Adept-${{env.shortVersion}}.exe
+          mv Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip stage/Windows-x86_64-Standalone-Adept-${{env.shortVersion}}.zip
+          mv Adept-${{env.shortVersion}}-standalone-arm64-MacOS.zip stage/MacOS-arm64-Standalone-Adept-${{env.shortVersion}}.zip
+          mv Adept-${{env.shortVersion}}-standalone-x86_64-Ubuntu.zip stage/Ubuntu-x86_64-Standalone-Adept-${{env.shortVersion}}.zip
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date '+%B %d %Y %l:%M %p %Z')"
@@ -491,8 +491,8 @@ jobs:
           tag: ${{env.releaseTagName}}
           replace: true
           files: >
-            stage/Installer-MacOS-arm64-Adept-${{env.shortVersion}}.pkg
-            stage/Installer-Windows-x86_64-Adept-${{env.shortVersion}}.exe
-            stage/Standalone-MacOS-arm64-Adept-${{env.shortVersion}}.zip
-            stage/Standalone-Ubuntu-x86_64-Adept-${{env.shortVersion}}.zip
-            stage/Standalone-Windows-x86_64-Adept-${{env.shortVersion}}.zip
+            stage/MacOS-arm64-Installer-Adept-${{env.shortVersion}}.pkg
+            stage/MacOS-arm64-Standalone-Adept-${{env.shortVersion}}.zip
+            stage/Windows-x86_64-Installer-Adept-${{env.shortVersion}}.exe
+            stage/Windows-x86_64-Standalone-Adept-${{env.shortVersion}}.zip
+            stage/Ubuntu-x86_64-Standalone-Adept-${{env.shortVersion}}.zip
