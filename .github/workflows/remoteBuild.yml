@@ -429,11 +429,9 @@ jobs:
       - name: Package as Standalone for Ubuntu
         run: |
           mkdir -p adept-${{env.shortVersion}}-standalone
-          cd adept-${{env.shortVersion}}-standalone
-          cp ../ubuntu-latest/build/adept adept
-          mv ../AdeptConfig/adept.config adept.config
-          mv ../AdeptImport import
-          cd ..
+          cp ubuntu-latest/build/adept adept-${{env.shortVersion}}-standalone/adept
+          mv AdeptConfig/adept.config adept-${{env.shortVersion}}-standalone/adept.config
+          mv AdeptImport adept-${{env.shortVersion}}-standalone/import
           echo usr lib
           ls -la /usr/lib | grep libcurl
           echo usr lib64
