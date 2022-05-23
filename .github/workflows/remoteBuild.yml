@@ -417,6 +417,32 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: build-ubuntu-latest-archive
+      - name: Checkout Adept Default Configuration
+        uses: actions/checkout@v3
+        with:
+          repository: 'AdeptLanguage/Config'
+          path: 'AdeptConfig'
+      - name: Checkout Adept Standard Library
+        uses: actions/checkout@v3
+        with:
+          repository: 'AdeptLanguage/AdeptImport'
+      - name: Package as Standalone for Ubuntu
+        run: |
+          mkdir -p adept-${{env.shortVersion}}-standalone
+          cd adept-${{env.shortVersion}}-standalone/adept
+          cp ../ubuntu-latest/build/adept adept
+          mv ../AdeptConfig/adept.config adept.config
+          mv ../AdeptImport import
+          cd ..
+          echo usr lib
+          ls -la /usr/lib | grep libcurl
+          echo usr lib64
+          ls -la /usr/lib64 | grep libcurl
+          echo lib
+          ls -la /lib | grep libcurl
+          echo lib64
+          ls -la /lib64 | grep libcurl
+          zip -r Adept-${{env.shortVersion}}-standalone-x86_64-Ubuntu.zip adept-${{env.shortVersion}}-standalone
       - name: Download Windows Installer Artifact
         uses: actions/download-artifact@v3
         with:
@@ -459,10 +485,11 @@ jobs:
           mv windows-latest/build/adept.exe stage/partial-x86_64-Windows-adept.exe
           mv macos-latest/build/adept stage/partial-arm64-MacOS-adept
           mv ubuntu-latest/build/adept stage/partial-x86_64-Ubuntu-adept
-          mv Adept-${{env.shortVersion}}-installer.pkg stage/Adept-${{env.shortVersion}}-installer.pkg
-          mv Adept-${{env.shortVersion}}-installer.exe stage/Adept-${{env.shortVersion}}-installer.exe
-          mv Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip stage/Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip
-          mv Adept-${{env.shortVersion}}-standalone-arm64-MacOS.zip stage/Adept-${{env.shortVersion}}-standalone-arm64-MacOS.zip
+          mv Adept-${{env.shortVersion}}-installer.pkg stage/Installer-MacOS-Adept-${{env.shortVersion}}.pkg
+          mv Adept-${{env.shortVersion}}-installer.exe stage/Installer-Windows-Adept-${{env.shortVersion}}.exe
+          mv Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip stage/Standalone-Windows-x86_64-Adept-${{env.shortVersion}}.zip
+          mv Adept-${{env.shortVersion}}-standalone-arm64-MacOS.zip stage/Standalone-MacOS-arm64-Adept-${{env.shortVersion}}.zip
+          mv Adept-${{env.shortVersion}}-standalone-x86_64-Ubuntu.zip stage/Standalone-Ubuntu-x86_64-Adept-${{env.shortVersion}}.zip
       - name: Get current date
         id: date
         run: echo "::set-output name=date::$(date '+%B %d %Y %l:%M %p %Z')"
@@ -475,10 +502,11 @@ jobs:
           tag: ${{env.releaseTagName}}
           replace: true
           files: >
-            stage/partial-x86_64-Windows-adept.exe
-            stage/partial-arm64-MacOS-adept
-            stage/partial-x86_64-Ubuntu-adept
-            stage/Adept-${{env.shortVersion}}-installer.pkg
-            stage/Adept-${{env.shortVersion}}-installer.exe
-            stage/Adept-${{env.shortVersion}}-standalone-x86_64-Windows.zip
-            stage/Adept-${{env.shortVersion}}-standalone-arm64-MacOS.zip
+            stage/Installer-MacOS-arm64-Adept-${{env.shortVersion}}.pkg
+            stage/Installer-Windows-x86_64-Adept-${{env.shortVersion}}.exe
+            stage/Standalone-MacOS-arm64-Adept-${{env.shortVersion}}.zip
+            stage/Standalone-Ubuntu-x86_64-Adept-${{env.shortVersion}}.zip
+            stage/Standalone-Windows-x86_64-Adept-${{env.shortVersion}}.zip
+            stage/without-infrastructure-x86_64-Windows-adept.exe
+            stage/without-infrastructure-arm64-MacOS-adept
+            stage/without-infrastructure-x86_64-Ubuntu-adept
