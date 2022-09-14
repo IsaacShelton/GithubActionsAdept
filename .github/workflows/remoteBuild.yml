@@ -115,11 +115,9 @@ jobs:
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
       - name: Build
-        if: ${{ matrix.os != 'windows-latest' }}
         run: |
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
       - name: Archive Build Result
-        if: ${{ matrix.os != 'windows-latest' }}
         uses: a7ul/tar-action@v1.1.0
         with:
           command: c
