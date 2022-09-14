@@ -115,22 +115,24 @@ jobs:
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
       - name: Build
+        if: ${{ matrix.os != 'windows-latest' }}
         run: |
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
       - name: Archive Build Result
+        if: ${{ matrix.os != 'windows-latest' }}
         uses: a7ul/tar-action@v1.1.0
         with:
           command: c
           files: build
           outPath: build-${{ matrix.os }}.tar.gz
       - name: Archive E2E Infrastructure
+        if: ${{ matrix.os != 'windows-latest' }}
         uses: a7ul/tar-action@v1.1.0
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
           command: c
           cwd: tests
-          files: e2e
-          outPath: e2e.tar.gz
+          files: e2e outPath: e2e.tar.gz
       - name: Archive Support Libraries Infrastructure
         uses: a7ul/tar-action@v1.1.0
         if: ${{ matrix.os == 'windows-latest' }}
