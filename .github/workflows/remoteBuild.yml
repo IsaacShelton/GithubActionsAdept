@@ -132,7 +132,8 @@ jobs:
         with:
           command: c
           cwd: tests
-          files: e2e outPath: e2e.tar.gz
+          files: e2e
+          outPath: e2e.tar.gz
       - name: Archive Support Libraries Infrastructure
         uses: a7ul/tar-action@v1.1.0
         if: ${{ matrix.os == 'windows-latest' }}
