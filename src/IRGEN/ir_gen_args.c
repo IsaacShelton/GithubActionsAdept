@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "AST/POLY/ast_resolve.h"
 #include "AST/TYPE/ast_type_identical.h"
 #include "AST/ast.h"
 #include "AST/ast_expr_lean.h"
@@ -18,6 +19,7 @@
 #include "IRGEN/ir_gen_type.h"
 #include "UTIL/ground.h"
 #include "UTIL/trait.h"
+#include "UTIL/util.h"
 
 successful_t func_args_match(ast_func_t *func, ast_type_t *type_list, length_t type_list_length){
     ast_type_t *arg_types = func->arg_types;
@@ -104,11 +106,13 @@ errorcode_t func_args_polymorphable(ir_builder_t *builder, ast_func_t *poly_temp
     length_t required_arity = poly_template->arity;
 
     // Ensure argument supplied meet length requirements
-    if(
-        required_arity < type_list_length &&
-        !(poly_template->traits & AST_FUNC_VARARG) &&
-        (conform_mode & CONFORM_MODE_VARIADIC ? !(poly_template->traits & AST_FUNC_VARIADIC) : true)
-    ) return FAILURE;
+    if(required_arity < type_list_length){
+        if(!(poly_template->traits & AST_FUNC_VARARG)){
+            if(!(conform_mode & CONFORM_MODE_VARIADIC) || !(poly_template->traits & AST_FUNC_VARIADIC)){
+                return FAILURE;
+            }
+        }
+    }
 
     // Determine whether we are missing arguments
     bool requires_use_of_defaults = required_arity > type_list_length;
@@ -139,20 +143,21 @@ errorcode_t func_args_polymorphable(ir_builder_t *builder, ast_func_t *poly_temp
     ir_pool_snapshot_capture(builder->pool, &snapshot);
 
     // Store a copy of the unmodified function argument values
-    ir_value_t **arg_value_list_unmodified = malloc(sizeof(ir_value_t*) * type_list_length);
-    memcpy(arg_value_list_unmodified, arg_value_list, sizeof(ir_value_t*) * type_list_length);
+    ir_value_t **arg_value_list_unmodified = memclone(arg_value_list, sizeof(ir_value_t*) * type_list_length);
 
     // We will make weak copy of fields of 'poly_template' we will need to access,
-    // since it the location of the function in memory may move during conformation process
+    // since it the location of the function may move in memory during the conformation process
     ast_type_t poly_template_return_type = poly_template->return_type;
     ast_type_t *poly_template_arg_types = poly_template->arg_types;
 
     // Number of polymorphic paramater types that have been processed (used for cleanup)
     length_t i;
 
-    for(i = 0; i != type_list_length; i++){
+    length_t num_conforms = length_min(type_list_length, required_arity);
+
+    for(i = 0; i != num_conforms; i++){
         if(ast_type_has_polymorph(&poly_template_arg_types[i]))
-            res = ir_gen_polymorphable(builder->compiler, builder->object, &poly_template_arg_types[i], &arg_types[i], &catalog);
+            res = ir_gen_polymorphable(builder->compiler, builder->object, &poly_template_arg_types[i], &arg_types[i], &catalog, true);
         else
             res = ast_types_conform(builder, &arg_value_list[i], &arg_types[i], &poly_template_arg_types[i], conform_mode) ? SUCCESS : FAILURE;
 
@@ -164,29 +169,34 @@ errorcode_t func_args_polymorphable(ir_builder_t *builder, ast_func_t *poly_temp
 
     // Ensure return type matches if provided
     if(gives && gives->elements_length != 0){
-        res = ir_gen_polymorphable(builder->compiler, builder->object, &poly_template_return_type, gives, &catalog);
+        res = ir_gen_polymorphable(builder->compiler, builder->object, &poly_template_return_type, gives, &catalog, false);
 
         if(res != SUCCESS){
             goto polymorphic_failure;
         }
 
         ast_type_t concrete_return_type;
-        if(resolve_type_polymorphics(builder->compiler, builder->type_table, &catalog, &poly_template_return_type, &concrete_return_type)){
+        if(ast_resolve_type_polymorphs(builder->compiler, builder->type_table, &catalog, &poly_template_return_type, &concrete_return_type)){
             res = FAILURE;
             goto polymorphic_failure;
         }
 
-        bool meets_return_matching_requirement = ast_types_identical(gives, &concrete_return_type);
+        bool matches_return_type = ast_types_identical(gives, &concrete_return_type);
         ast_type_free(&concrete_return_type);
 
-        if(!meets_return_matching_requirement){
+        if(!matches_return_type){
+            compiler_panicf(builder->compiler, gives->source, "Unable to match requested return type with callee's return type");
             res = FAILURE;
             goto polymorphic_failure;
         }
     }
 
-    if(out_catalog) *out_catalog = catalog;
-    else ast_poly_catalog_free(&catalog);
+    if(out_catalog){
+        *out_catalog = catalog;
+    } else {
+        ast_poly_catalog_free(&catalog);
+    }
+
     free(arg_value_list_unmodified);
     return SUCCESS;
 
@@ -211,7 +221,7 @@ errorcode_t func_args_polymorphable_no_conform(compiler_t *compiler, object_t *o
 
     for(length_t i = 0; i != type_list_length; i++){
         if(ast_type_has_polymorph(&poly_template->arg_types[i]))
-            res = ir_gen_polymorphable(compiler, object, &poly_template->arg_types[i], &arg_types[i], &catalog);
+            res = ir_gen_polymorphable(compiler, object, &poly_template->arg_types[i], &arg_types[i], &catalog, false);
         else
             res = ast_types_identical(&arg_types[i], &poly_template->arg_types[i]) ? SUCCESS : FAILURE;
 

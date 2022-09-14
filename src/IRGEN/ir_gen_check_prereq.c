@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "AST/ast_type.h"
-#include "BRIDGEIR/funcpair.h"
+#include "UTIL/func_pair.h"
 #include "DRVR/compiler.h"
 #include "DRVR/object.h"
 #include "IRGEN/ir_gen_check_prereq.h"
@@ -20,7 +20,7 @@ static int compare_strings(const void *raw_a, const void *raw_b){
 }
 
 static errorcode_t ir_gen_check_prereq_assign(compiler_t *compiler, object_t *object, ast_type_t *concrete_type, bool *out_meets){
-    optional_funcpair_t result;
+    optional_func_pair_t result;
 
     errorcode_t res = ir_gen_find_assign_func(compiler, object, concrete_type, &result);
     if(res == ALT_FAILURE) return res;
@@ -128,11 +128,18 @@ errorcode_t ir_gen_check_prereq(
         // Ignore -Wswitch for NUM_SPECIAL_PREREQ
     }
 
-    internalerrorprintf("ir_gen_check_prereq() - Unrecognized special polymorphic prerequisite '%s'\n", global_special_prerequisites[special_prereq]);
+    if(special_prereq < NUM_SPECIAL_PREREQ){
+        internalerrorprintf("ir_gen_check_prereq() - Unrecognized special polymorphic prerequisite '%s'\n", global_special_prerequisites[special_prereq]);
+    } else {
+        internalerrorprintf("ir_gen_check_prereq() - Unrecognized special polymorphic prerequisite with id '%d'\n", special_prereq);
+    }
+
     return FAILURE;
 }
 
-bool is_special_prerequisite(weak_cstr_t prerequisite_name, enum special_prereq *out_special_prerequisite){
+bool is_special_prerequisite(maybe_null_weak_cstr_t prerequisite_name, enum special_prereq *out_special_prerequisite){
+    if(prerequisite_name == NULL) return false;
+
     const char **result = bsearch(&prerequisite_name, global_special_prerequisites, NUM_SPECIAL_PREREQ, sizeof(const char*), &compare_strings);
 
     if(result && out_special_prerequisite != NULL){

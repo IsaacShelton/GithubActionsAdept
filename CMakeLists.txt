@@ -1,19 +1,32 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.13)
 project(Adept)
 
 option(ADEPT_LINK_LLVM_STATIC "Link against LLVM using static libs" default)
 option(ADEPT_ENABLE_ASAN "Enable runtime address-santization / undefined behavior sanitization for debug builds (only available for Apple clang and LLVM clang)" Off)
 option(ADEPT_ENABLE_LSAN "Enable runtime leak-sanitization for debug builds (only available for LLVM clang)" Off)
 
+if (WIN32)
+	set(ZLIB_USE_STATIC_LIBS On) # Only affects CMake 3.24+
+endif()
+
 find_package(LLVM REQUIRED)
 find_package(CURL REQUIRED)
+find_package(ZLIB REQUIRED)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS "Found Curl ${CURL_LIBRARIES}")
+message(STATUS "Found ZLIB ${ZLIB_LIBRARIES}")
+
+if (MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -pedantic)
+endif()
 
 set(core_source_files
 	src/AST/EXPR/ast_expr_free.c src/AST/EXPR/ast_expr_str.c
+	src/AST/POLY/ast_resolve.c src/AST/POLY/ast_translate.c
 	src/AST/TYPE/ast_type_clone.c src/AST/TYPE/ast_type_free.c
 	src/AST/TYPE/ast_type_hash.c src/AST/TYPE/ast_type_helpers.c src/AST/TYPE/ast_type_identical.c
 	src/AST/TYPE/ast_type_is.c src/AST/TYPE/ast_type_make.c src/AST/TYPE/ast_type_str.c
@@ -21,19 +34,20 @@ set(core_source_files
 	src/AST/ast_constant.c src/AST/ast_expr.c src/AST/ast_layout.c
 	src/AST/ast_poly_catalog.c src/AST/ast.c
 	src/AST/meta_directives.c src/BKEND/backend.c src/BKEND/ir_to_c.c src/BKEND/ir_to_llvm.c src/BKEND/ir_to_llvm_impl.c src/BRIDGE/any.c
-	src/BRIDGE/bridge.c src/BRIDGEIR/funcpair.c src/BRIDGE/type_table.c src/BRIDGEIR/rtti.c src/DRVR/compiler.c
+	src/BRIDGE/bridge.c src/BRIDGE/type_table.c src/BRIDGEIR/rtti.c src/DRVR/compiler.c
 	src/DRVR/config.c src/DRVR/object.c src/INFER/infer.c
-	src/IR/ir_pool.c src/IR/ir_proc_map.c src/IR/ir_proc_query.c src/IR/ir_type.c src/IR/ir_type_spec.c src/IR/ir_value_str.c
-	src/IR/ir.c src/IR/ir_dump.c src/IR/ir_func_endpoint.c src/IR/ir_lowering.c
+	src/IR/ir_pool.c src/IR/ir_proc_map.c src/IR/ir_type_map.c src/IR/ir_proc_query.c src/IR/ir_type.c src/IR/ir_type_spec.c src/IR/ir_value_str.c
+	src/IR/ir.c src/IR/ir_dump.c src/IR/ir_func_endpoint.c src/IR/ir_lowering.c src/IR/ir_module.c
 	src/IRGEN/ir_builder.c src/IRGEN/ir_cache.c src/IRGEN/ir_gen_args.c src/IRGEN/ir_gen_check_prereq.c
 	src/IRGEN/ir_gen_expr.c src/IRGEN/ir_gen_find_sf.c src/IRGEN/ir_gen_find.c
-	src/IRGEN/ir_gen_polymorphable.c src/IRGEN/ir_gen_qualifiers.c src/IRGEN/ir_gen_rtti.c src/IRGEN/ir_gen_stmt.c src/IRGEN/ir_gen_type.c src/IRGEN/ir_gen.c
+	src/IRGEN/ir_gen_polymorphable.c src/IRGEN/ir_gen_qualifiers.c src/IRGEN/ir_gen_rtti.c src/IRGEN/ir_gen_stmt.c src/IRGEN/ir_gen_type.c
+	src/IRGEN/ir_gen_vtree.c src/IRGEN/ir_gen.c src/IRGEN/ir_vtree.c
 	src/LEX/lex.c src/LEX/pkg.c src/LEX/token.c src/PARSE/parse_alias.c src/PARSE/parse_checks.c src/PARSE/parse_ctx.c
 	src/PARSE/parse_dependency.c src/PARSE/parse_enum.c src/PARSE/parse_expr.c src/PARSE/parse_func.c
 	src/PARSE/parse_global.c src/PARSE/parse_meta.c src/PARSE/parse_namespace.c src/PARSE/parse_pragma.c
 	src/PARSE/parse_stmt.c src/PARSE/parse_struct.c src/PARSE/parse_type.c src/PARSE/parse_util.c
 	src/PARSE/parse.c src/TOKEN/token_data.c src/UTIL/color.c src/UTIL/datatypes.c src/NET/download.c
-	src/UTIL/builtin_type.c src/UTIL/filename.c src/UTIL/ground.c src/UTIL/hash.c src/UTIL/jsmn_helper.c src/UTIL/levenshtein.c
+	src/UTIL/builtin_type.c src/UTIL/filename.c src/UTIL/func_pair.c src/UTIL/ground.c src/UTIL/hash.c src/UTIL/jsmn_helper.c src/UTIL/levenshtein.c
 	src/UTIL/list.c src/UTIL/memory.c src/UTIL/search.c src/NET/stash.c src/UTIL/string_builder.c
 	src/UTIL/string_list.c src/UTIL/string.c src/UTIL/util.c)
 
@@ -53,17 +67,13 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	add_definitions( -DENABLE_DEBUG_FEATURES )
 
 	if(ADEPT_ENABLE_ASAN)
-		target_compile_options(adept PRIVATE -fsanitize=address,undefined)
-		target_link_options(adept PRIVATE -fsanitize=address,undefined)
-		target_compile_options(libadept PRIVATE -fsanitize=address,undefined)
-		target_link_options(libadept PRIVATE -fsanitize=address,undefined)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,undefined,implicit-conversion,bounds")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined,implicit-conversion,bounds")
 	endif()
 
 	if(ADEPT_ENABLE_LSAN)
-		target_compile_options(adept PRIVATE -fsanitize=leak)
-		target_link_options(adept PRIVATE -fsanitize=leak)
-		target_compile_options(libadept PRIVATE -fsanitize=leak)
-		target_link_options(libadept PRIVATE -fsanitize=leak)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=leak")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
 	endif()
 else()
 	message(STATUS "Excluding debug files")
@@ -78,7 +88,7 @@ target_sources(adept PRIVATE ${app_source_files})
 target_sources(libadept PRIVATE ${app_source_files})
 
 if(WIN32)
-	set(extra_libs ${EXTRA_REQUIRED_LIBS} -lz -lpsapi -lshell32 -lole32 -luuid -ladvapi32)
+	set(extra_libs ${EXTRA_REQUIRED_LIBS} ${ZLIB_LIBRARIES} -lpsapi -lshell32 -lole32 -luuid -ladvapi32)
 
 	if(ADEPT_LINK_LLVM_STATIC STREQUAL "default")
 		set(ADEPT_LINK_LLVM_STATIC On)
@@ -90,7 +100,7 @@ if(WIN32)
 endif()
 
 if(APPLE)
-	set(extra_libs ${EXTRA_REQUIRED_LIBS} -lldap -lpthread -lz -lcurses)
+	set(extra_libs ${EXTRA_REQUIRED_LIBS} -lldap -lpthread ${ZLIB_LIBRARIES} -lcurses)
 
 	if(ADEPT_LINK_LLVM_STATIC STREQUAL "default")
 		set(ADEPT_LINK_LLVM_STATIC Off)
@@ -99,7 +109,7 @@ endif()
 
 if(UNIX AND NOT APPLE)
 	# Linux
-	set(extra_libs ${EXTRA_REQUIRED_LIBS} -ldl -lpthread -lz -lcurses -lm)
+	set(extra_libs ${EXTRA_REQUIRED_LIBS} -ldl -lpthread ${ZLIB_LIBRARIES} -lcurses -lm)
 
 	if(ADEPT_LINK_LLVM_STATIC STREQUAL "default")
 		set(ADEPT_LINK_LLVM_STATIC Off)

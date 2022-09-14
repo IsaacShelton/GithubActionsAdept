@@ -4,19 +4,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "AST/POLY/ast_resolve.h"
+#include "AST/POLY/ast_translate.h"
+#include "AST/TYPE/ast_type_identical.h"
+#include "AST/TYPE/ast_type_make.h"
 #include "AST/UTIL/string_builder_extensions.h"
 #include "AST/ast.h"
 #include "AST/ast_expr.h"
 #include "AST/ast_type.h"
 #include "BRIDGE/any.h"
 #include "BRIDGE/bridge.h"
-#include "BRIDGEIR/funcpair.h"
+#include "UTIL/func_pair.h"
 #include "BRIDGEIR/rtti.h"
 #include "BRIDGE/type_table.h"
 #include "DRVR/compiler.h"
 #include "DRVR/object.h"
 #include "IR/ir.h"
 #include "IR/ir_func_endpoint.h"
+#include "IR/ir_module.h"
 #include "IR/ir_pool.h"
 #include "IR/ir_type.h"
 #include "IR/ir_value.h"
@@ -24,9 +29,12 @@
 #include "IRGEN/ir_gen.h"
 #include "IRGEN/ir_gen_expr.h"
 #include "IRGEN/ir_gen_find.h"
+#include "IRGEN/ir_gen_polymorphable.h"
 #include "IRGEN/ir_gen_rtti.h"
 #include "IRGEN/ir_gen_stmt.h"
 #include "IRGEN/ir_gen_type.h"
+#include "IRGEN/ir_gen_vtree.h"
+#include "IRGEN/ir_vtree.h"
 #include "LEX/lex.h"
 #include "UTIL/builtin_type.h"
 #include "UTIL/color.h"
@@ -47,9 +55,230 @@ errorcode_t ir_gen(compiler_t *compiler, object_t *object){
     return ir_gen_type_mappings(compiler, object)
         || ir_gen_globals(compiler, object)
         || ir_gen_functions(compiler, object)
-        || ir_gen_functions_body(compiler, object)
+        || ir_gen_functions_body(compiler, object, NULL)
+        || ir_gen_vtables(compiler, object)
         || ir_gen_special_globals(compiler, object)
         || ir_gen_fill_in_rtti(object);
+}
+
+errorcode_t ir_gen_vtables(compiler_t *compiler, object_t *object){
+    ast_t *ast = &object->ast;
+    ir_module_t *module = &object->ir_module;
+    ir_proc_map_t method_map = module->method_map;
+
+    // Overview of Steps:
+    // - Create list of trees, with virtual functions at roots
+    // - Link children to parents
+    // - Mark overrides
+    // - Generate missing methods
+    // - Collect tree silhouettes into vtables
+
+    vtree_list_t vtree_list = {0};
+    virtual_addition_list_t additions = {0};
+    ir_job_list_t recent_jobs = {0};
+
+    // Collect all concrete virtual methods along with determining root classes
+    for(length_t i = 0; i != method_map.length; i++){
+        ir_func_endpoint_list_t *endpoint_list = method_map.endpoint_lists[i];
+        
+        for(length_t i = 0; i != endpoint_list->length; i++){
+            ir_func_endpoint_t endpoint = endpoint_list->endpoints[i];
+            ast_func_t *func = &ast->funcs[endpoint.ast_func_id];
+
+            if(func->traits & AST_FUNC_VIRTUAL && endpoint.ir_func_id != INVALID_FUNC_ID){
+                ast_type_t subject_type = ast_type_unwrapped_view(&func->arg_types[0]);
+                vtree_t *vtree = vtree_list_find_or_append(&vtree_list, &subject_type);
+                vtree_append_virtual(vtree, endpoint);
+            }
+        }
+    }
+
+    // Grab all remaining descendent classes of root classes by examining all existing concrete class constructors
+    for(length_t i = 0; i != ast->funcs_length; i++){
+        ast_func_t *func = &ast->funcs[i];
+
+        if(func->traits & AST_FUNC_CLASS_CONSTRUCTOR && !(func->traits & AST_FUNC_POLYMORPHIC)){
+            ast_type_t subject_type = ast_type_unwrapped_view(&func->arg_types[0]);
+            vtree_list_find_or_append(&vtree_list, &subject_type);
+        }
+    }
+
+    // Link up parents and children
+    if(ir_gen_vtree_link_up_nodes(compiler, object, &vtree_list, 0)) goto failure;
+
+    // Search for overrides for descendent classes
+    for(length_t i = 0; i != vtree_list.length; i++){
+        vtree_t *root = vtree_list.vtrees[i];
+
+        if(root->parent == NULL){
+            if(ir_gen_vtree_overrides(compiler, object, root, 256)){
+                goto failure;
+            }
+        }
+    }
+
+    length_t max_iters_left = 32000;
+
+    do {
+        // Clear recent jobs list (if it's not already empty)
+        // We will use this list to keep track of which jobs were just processed while
+        // generating the function bodies for the instantiated overrides
+        recent_jobs.length = 0;
+
+        length_t start_ast_func_i = ast->funcs_length;
+
+        // Instantiate new function bodies
+        if(ir_gen_functions_body(compiler, object, &recent_jobs)){
+            goto failure;
+        }
+
+        length_t start_vtree_i = vtree_list.length;
+
+        // Clear additions list (if it's not already empty)
+        // We will use this list to keep track of new virtual method additions
+        additions.length = 0;
+
+        // Create list of virtual additions (process may include creating new vtrees)
+        for(length_t i = 0; i != recent_jobs.length; i++){
+            ir_func_endpoint_t endpoint = recent_jobs.jobs[i];
+            ast_func_t *func = &ast->funcs[endpoint.ast_func_id];
+
+            if(ast_func_is_method(func) && func->traits & AST_FUNC_VIRTUAL && endpoint.ir_func_id != INVALID_FUNC_ID){
+                ast_type_t subject_type = ast_type_unwrapped_view(&func->arg_types[0]);
+
+                virtual_addition_t addition = (virtual_addition_t){
+                    .vtree = vtree_list_find_or_append(&vtree_list, &subject_type),
+                    .endpoint = endpoint,
+                };
+
+                virtual_addition_list_append(&additions, addition);
+            }
+        }
+
+        // Grab all new concrete classes by looking over new AST functions for any new concrete class constructors
+        for(length_t i = start_ast_func_i; i != ast->funcs_length; i++){
+            ast_func_t *func = &ast->funcs[i];
+
+            if(func->traits & AST_FUNC_CLASS_CONSTRUCTOR && !(func->traits & AST_FUNC_POLYMORPHIC)){
+                ast_type_t subject_type = ast_type_unwrapped_view(&func->arg_types[0]);
+                vtree_list_find_or_append(&vtree_list, &subject_type);
+            }
+        }
+
+        // Link up any newly created vtrees
+        if(ir_gen_vtree_link_up_nodes(compiler, object, &vtree_list, start_vtree_i)) goto failure;
+
+        // Waterfall new virtuals and search for their overrides
+        for(length_t i = 0; i < additions.length; i++){
+            virtual_addition_t *addition = &additions.additions[i];
+
+            length_t insertion_point = addition->vtree->virtuals.length;
+            
+            // Add virtual method
+            vtree_append_virtual(addition->vtree, addition->endpoint);
+            
+            // Add virtual method default endpoint to table
+            ir_func_endpoint_list_append(&addition->vtree->table, addition->endpoint);
+
+            // Inject overrides for descendants
+            if(ir_gen_vtree_inject_addition_for_descendants(compiler, object, *addition, insertion_point, addition->vtree)){
+                goto failure;
+            }
+        }
+    } while(module->job_list.length != 0 && --max_iters_left != 0);
+
+    if(module->job_list.length > 0){
+        internalerrorprintf("During vtable generation, chained virtual instantiation resolution iterations reached an absurdly high number. Refusing to process further\n");
+        goto failure;
+    }
+
+    // Generate finalized vtables
+    for(length_t i = 0; i != vtree_list.length; i++){
+        vtree_t *vtree = vtree_list.vtrees[i];
+
+        if(vtree->table.length > 0){
+            ir_value_t **ir_vtable_entries = ir_pool_alloc(&module->pool, sizeof(ir_value_t*) * vtree->table.length);
+
+            for(length_t j = 0; j != vtree->table.length; j++){
+                ir_vtable_entries[j] = build_func_addr(&module->pool, module->common.ir_ptr, vtree->table.endpoints[j].ir_func_id);
+            }
+
+            ir_value_t *vtable = build_static_array(&module->pool, module->common.ir_ptr, ir_vtable_entries, vtree->table.length);
+            vtree->finalized_table = build_const_bitcast(&module->pool, vtable, module->common.ir_ptr);
+        }
+    }
+
+    // Inject vtable initializations
+    for(length_t i = 0; i < module->vtable_init_list.length; i++){
+        ir_vtable_init_t *vtable_init = &module->vtable_init_list.initializations[i];
+
+        vtree_t *vtree = vtree_list_find(&vtree_list, &vtable_init->subject_type);
+
+        if(vtree == NULL){
+            strong_cstr_t typename = ast_type_str(&vtable_init->subject_type);
+            compiler_panicf(compiler, vtable_init->subject_type.source, "Failed to find generated vtable for type '%s'", typename);
+            free(typename);
+            goto failure;
+        }
+
+        // Use finalized vtable (or null pointer for empty vtables)
+        vtable_init->store_instr->value =
+            vtree->finalized_table
+                ? vtree->finalized_table
+                : build_null_pointer_of_type(&module->pool, module->common.ir_ptr);
+    }
+
+    // Inject vtable indices for each virtual dispatcher
+    for(length_t i = 0; i != vtree_list.length; i++){
+        vtree_t *vtree = vtree_list.vtrees[i];
+
+        for(length_t j = 0; j != vtree->virtuals.length; j++){
+            ir_func_endpoint_t endpoint = vtree->virtuals.endpoints[j];
+
+            ast_func_t *func = &ast->funcs[endpoint.ast_func_id];
+
+            length_t parent_table_size = vtree->parent ? vtree->parent->table.length : 0;
+            length_t index = parent_table_size + j;
+
+            // Linear search for corresponding index
+            ir_value_t *index_value = NULL;
+
+            for(length_t k = 0; k != module->vtable_dispatch_list.length; k++){
+                ir_vtable_dispatch_t *dispatch = &module->vtable_dispatch_list.dispatches[k];
+
+                if(dispatch->ast_func_id == func->virtual_dispatcher){
+                    index_value = dispatch->index_value;
+                    break;
+                }
+            }
+
+            assert(index_value != NULL);
+
+            adept_usize *literal = (adept_usize*) index_value->extra;
+            *literal = index;
+        }
+    }
+
+    // Don't allow unused concrete method overrides
+    for(length_t i = 0; i != ast->funcs_length; i++){
+        ast_func_t *func = &ast->funcs[i];
+
+        if(func->traits & AST_FUNC_OVERRIDE && !(func->traits & AST_FUNC_POLYMORPHIC) && !(func->traits & AST_FUNC_USED_OVERRIDE)){
+            compiler_panicf(compiler, func->source, "No virtual method exists to override");
+            goto failure;
+        }
+    }
+
+    ir_job_list_free(&recent_jobs);
+    virtual_addition_list_free(&additions);
+    vtree_list_free(&vtree_list);
+    return SUCCESS;
+
+failure:
+    ir_job_list_free(&recent_jobs);
+    virtual_addition_list_free(&additions);
+    vtree_list_free(&vtree_list);
+    return FAILURE;
 }
 
 errorcode_t ir_gen_functions(compiler_t *compiler, object_t *object){
@@ -62,8 +291,10 @@ errorcode_t ir_gen_functions(compiler_t *compiler, object_t *object){
 
     // Setup IR variadic array type if it exists
     if(ast->common.ast_variadic_array){
-        // Resolve ast_variadic_array type
-        if(ir_gen_resolve_type(compiler, object, ast->common.ast_variadic_array, &ir_module->common.ir_variadic_array)) return FAILURE;
+        // Resolve variadic array type
+        if(ir_gen_resolve_type(compiler, object, ast->common.ast_variadic_array, &ir_module->common.ir_variadic_array)){
+            return FAILURE;
+        }
     }
 
     // Generate function skeletons
@@ -102,14 +333,14 @@ errorcode_t ir_gen_functions(compiler_t *compiler, object_t *object){
     for(length_t i = 0; i != ast->func_aliases_length; i++){
         ast_func_alias_t *falias = &(*ast_func_aliases)[i];
 
-        funcpair_t pair;
+        func_pair_t pair;
         errorcode_t error;
         bool is_unique = true;
 
         if(falias->match_first_of_name){
-            error = ir_gen_find_func_named(object, falias->to, &is_unique, &pair);
+            error = ir_gen_find_func_named(object, falias->to, &is_unique, &pair, false);
         } else {
-            optional_funcpair_t result;
+            optional_func_pair_t result;
             error = ir_gen_find_func_regular(compiler, object, falias->to, falias->arg_types, falias->arity, req_traits_mask, falias->required_traits, falias->source, &result);
 
             if(error == SUCCESS){
@@ -132,7 +363,7 @@ errorcode_t ir_gen_functions(compiler_t *compiler, object_t *object){
             .ir_func_id = pair.ir_func_id,
         };
         
-        ir_module_create_func_mapping(ir_module, falias->from, endpoint, true);
+        ir_module_create_func_mapping(ir_module, falias->from, endpoint, false);
     }
 
     errorcode_t error;
@@ -144,10 +375,10 @@ errorcode_t ir_gen_functions(compiler_t *compiler, object_t *object){
     return SUCCESS;
 }
 
-errorcode_t ir_gen_func_template(compiler_t *compiler, object_t *object, weak_cstr_t name, source_t from_source, funcid_t *out_ir_func_id){
+errorcode_t ir_gen_func_template(compiler_t *compiler, object_t *object, weak_cstr_t name, source_t from_source, func_id_t *out_ir_func_id){
     ir_module_t *module = &object->ir_module;
 
-    if(module->funcs.length >= MAX_FUNCID){
+    if(module->funcs.length >= MAX_FUNC_ID){
         compiler_panic(compiler, from_source, "Maximum number of IR functions reached\n");
         return FAILURE;
     }
@@ -157,27 +388,15 @@ errorcode_t ir_gen_func_template(compiler_t *compiler, object_t *object, weak_cs
 
     *out_ir_func_id = module->funcs.length++;
 
+    memset(module_func, 0, sizeof *module_func);
     module_func->name = name;
-    module_func->maybe_filename = NULL;
-    module_func->maybe_definition_string = NULL;
-    module_func->maybe_line_number = 0;
-    module_func->maybe_column_number = 0;
-    module_func->traits = TRAIT_NONE;
-    module_func->return_type = NULL;
-    module_func->argument_types = NULL;
-    module_func->arity = 0;
-    module_func->basicblocks = (ir_basicblocks_t){0};
-    module_func->scope = NULL;
-    module_func->variable_count = 0;
-    module_func->export_as = NULL;
-
     return SUCCESS;
 }
 
 errorcode_t ir_gen_func_head(compiler_t *compiler, object_t *object, ast_func_t *ast_func,
-        funcid_t ast_func_id, ir_func_endpoint_t *optional_out_new_endpoint){
+        func_id_t ast_func_id, ir_func_endpoint_t *optional_out_new_endpoint){
 
-    funcid_t ir_func_id;
+    func_id_t ir_func_id;
     if(ir_gen_func_template(compiler, object, ast_func->name, ast_func->source, &ir_func_id)) return FAILURE;
 
     ir_module_t *module = &object->ir_module;
@@ -257,7 +476,7 @@ errorcode_t ir_gen_func_head(compiler_t *compiler, object_t *object, ast_func_t 
             break;
         case AST_ELEM_GENERIC_BASE: {
                 ast_elem_generic_base_t *generic_base = (ast_elem_generic_base_t*) this_type->elements[1];
-                ast_polymorphic_composite_t *template = ast_polymorphic_composite_find_exact(&object->ast, generic_base->name);
+                ast_poly_composite_t *template = ast_poly_composite_find_exact(&object->ast, generic_base->name);
                 
                 if(template == NULL){
                     compiler_panicf(compiler, this_type->source, "Undeclared polymorphic struct '%s'", generic_base->name);
@@ -303,9 +522,7 @@ errorcode_t ir_gen_func_head(compiler_t *compiler, object_t *object, ast_func_t 
 
     if(ast_func->traits & AST_FUNC_MAIN && ast_type_is_void(&ast_func->return_type)){
         // If it's the main function and returns void, return int under the hood
-        module_func->return_type = ir_pool_alloc(&module->pool, sizeof(ir_type_t));
-        module_func->return_type->kind = TYPE_KIND_S32;
-        // neglect 'module_func->return_type->extra'
+        module_func->return_type = ir_type_make(&module->pool, TYPE_KIND_S32, NULL);
     } else {
         if(ir_gen_resolve_type(compiler, object, &ast_func->return_type, &module_func->return_type)) return FAILURE;
     }
@@ -313,32 +530,41 @@ errorcode_t ir_gen_func_head(compiler_t *compiler, object_t *object, ast_func_t 
     return SUCCESS;
 }
 
-errorcode_t ir_gen_functions_body(compiler_t *compiler, object_t *object){
+errorcode_t ir_gen_functions_body(compiler_t *compiler, object_t *object, ir_job_list_t *optional_out_completed_jobs){
     // NOTE: Only ir_gens function body; assumes skeleton already exists
 
     ast_func_t **ast_funcs = &object->ast.funcs;
     ir_job_list_t *job_list = &object->ir_module.job_list;
     
-    object->ir_module.init_builder = malloc(sizeof(ir_builder_t));
-    object->ir_module.deinit_builder = malloc(sizeof(ir_builder_t));
-    ir_builder_init(object->ir_module.init_builder, compiler, object, object->ir_module.common.ast_main_id, object->ir_module.common.ir_main_id, true);
-    ir_builder_init(object->ir_module.deinit_builder, compiler, object, object->ir_module.common.ast_main_id, object->ir_module.common.ir_main_id, true);
+    if(object->ir_module.init_builder == NULL){
+        object->ir_module.init_builder = malloc(sizeof(ir_builder_t));
+        ir_builder_init(object->ir_module.init_builder, compiler, object, object->ir_module.common.ast_main_id, object->ir_module.common.ir_main_id, true);
+    }
+
+    if(object->ir_module.deinit_builder == NULL){
+        object->ir_module.deinit_builder = malloc(sizeof(ir_builder_t));
+        ir_builder_init(object->ir_module.deinit_builder, compiler, object, object->ir_module.common.ast_main_id, object->ir_module.common.ir_main_id, true);
+    }
 
     while(job_list->length != 0){
-        ir_func_endpoint_t *job = &job_list->jobs[--job_list->length];
-        trait_t traits = (*ast_funcs)[job->ast_func_id].traits;
+        ir_func_endpoint_t job = job_list->jobs[--job_list->length];
+        trait_t traits = (*ast_funcs)[job.ast_func_id].traits;
 
         if(traits & AST_FUNC_FOREIGN) continue;
 
-        if(ir_gen_functions_body_statements(compiler, object, job->ast_func_id, job->ir_func_id)){
+        if(ir_gen_functions_body_statements(compiler, object, job.ast_func_id, job.ir_func_id)){
             return FAILURE;
+        }
+
+        if(optional_out_completed_jobs != NULL){
+            ir_job_list_append(optional_out_completed_jobs, job);
         }
     }
     
     return SUCCESS;
 }
 
-errorcode_t ir_gen_functions_body_statements(compiler_t *compiler, object_t *object, funcid_t ast_func_id, funcid_t ir_func_id){
+errorcode_t ir_gen_functions_body_statements(compiler_t *compiler, object_t *object, func_id_t ast_func_id, func_id_t ir_func_id){
     // Generates IR instructions from AST statements and then stores them in the IR function with the ID 'ir_func_id' as groups of basicblocks
 
     // Since the location of the AST function may shift around
@@ -354,6 +580,7 @@ errorcode_t ir_gen_functions_body_statements(compiler_t *compiler, object_t *obj
 
     bool show_is_empty_warning = ast_func.statements.length == 0
                               && !(ast_func.traits & AST_FUNC_GENERATED)
+                              && !(ast_func.traits & AST_FUNC_CLASS_CONSTRUCTOR)
                               && compiler->traits & COMPILER_FUSSY;
 
     if(show_is_empty_warning){
@@ -387,6 +614,92 @@ errorcode_t ir_gen_functions_body_statements(compiler_t *compiler, object_t *obj
 
     // Initialize all global variables
     if(is_main_like && ir_gen_globals_init(&builder)) goto failure;
+
+    // Create vtable initialization instruction for this function if it's a class constructor
+    if(ast_func.traits & AST_FUNC_CLASS_CONSTRUCTOR){
+        ast_type_t subject_type = ast_type_dereferenced_view(&ast_func.arg_types[0]);
+        
+        // Find 'this' argument
+        bridge_var_t *bridge_var = bridge_scope_find_var(builder.scope, "this");
+        assert(bridge_var);
+
+        // Get value of 'this'
+        ir_value_t *this_value = build_load(&builder, build_varptr(&builder, bridge_var->ir_type, bridge_var), ast_func.source);
+
+        // Create 'this.__vtable__' value
+        ir_type_t *ir_ptr = builder.object->ir_module.common.ir_ptr;
+        ir_type_t *ir_ptr_ptr = ir_type_make_pointer_to(builder.pool, ir_ptr);
+        ir_value_t *destination = build_member(&builder, this_value, /*index of __vtable__ field*/ 0, ir_ptr_ptr, ast_func.source);
+
+        // Create placeholder store instruction,
+        // The value to be stored will be filled in later during vtable resolution
+        build_store(&builder, NULL, destination, ast_func.source);
+
+        // Get persistent pointer to the dummy store instruction
+        ir_instr_store_t *store_instr = (ir_instr_store_t*) ir_builder_built_instruction(&builder);
+        assert(store_instr->id == INSTRUCTION_STORE);
+
+        // Append vtable initialization for later processing
+        ir_vtable_init_t vtable_init = (ir_vtable_init_t){
+            .store_instr = store_instr,
+            .subject_type = ast_type_clone(&subject_type),
+        };
+
+        ir_vtable_init_list_append(&builder.object->ir_module.vtable_init_list, vtable_init);
+    }
+
+    if(ast_func.traits & AST_FUNC_DISPATCHER){
+        // Find 'this' argument
+        bridge_var_t *bridge_var = bridge_scope_find_var(builder.scope, "this");
+        assert(bridge_var);
+
+        // Get value of 'this'
+        ir_value_t *this_value = build_load(&builder, build_varptr(&builder, bridge_var->ir_type, bridge_var), ast_func.source);
+
+        // Create 'this.__vtable__' value
+        ir_type_t *ir_ptr = builder.object->ir_module.common.ir_ptr;
+        ir_type_t *ir_ptr_ptr = ir_type_make_pointer_to(builder.pool, ir_ptr);
+        ir_value_t *vtable = build_load(&builder, build_member(&builder, this_value, /*index of __vtable__ field*/ 0, ir_ptr_ptr, ast_func.source), NULL_SOURCE);
+
+        ir_value_t *index = build_literal_usize(builder.pool, 0);
+
+        ir_value_t *table = build_bitcast(&builder, vtable, ir_type_make_pointer_to(builder.pool, object->ir_module.common.ir_ptr));
+        ir_value_t *raw_function_pointer = build_load(&builder, build_array_access(&builder, table, index, NULL_SOURCE), NULL_SOURCE);
+
+        ir_type_t *function_pointer_type;
+        ir_type_t *result_type;
+        length_t arity;
+        ir_value_t **arg_values;
+
+        {
+            ir_func_t *ir_func = &builder.object->ir_module.funcs.funcs[ir_func_id];
+            trait_t funcptr_traits = ast_func_traits_to_type_kind_func_traits(ast_func.traits);
+
+            function_pointer_type = ir_type_make_function_pointer(builder.pool, ir_func->argument_types, ir_func->arity, ir_func->return_type, funcptr_traits);
+            result_type = ir_func->return_type;
+            arity = ir_func->arity;
+
+            arg_values = ir_pool_alloc(builder.pool, sizeof(ir_type_t*) * arity);
+
+            for(length_t i = 0; i != arity; i++){
+                arg_values[i] = build_load(&builder, build_lvarptr(&builder, ir_type_make_pointer_to(builder.pool, ir_func->argument_types[i]), i), NULL_SOURCE);
+            }
+        }
+
+        ir_value_t *function_pointer = build_bitcast(&builder, raw_function_pointer, function_pointer_type);
+
+        ir_value_t *result = build_call_address(&builder, result_type, function_pointer, arg_values, arity);
+
+        build_return(&builder, result_type->kind != TYPE_KIND_VOID ? result : NULL);
+
+        ir_vtable_dispatch_t dispatch = (ir_vtable_dispatch_t){
+            .ast_func_id = ast_func_id,
+            .index_value = index,
+        };
+
+        ir_vtable_dispatch_list_append(&builder.object->ir_module.vtable_dispatch_list, dispatch);
+        goto success;
+    }
 
     if(ir_gen_stmts(&builder, &ast_func.statements, &terminated)) goto failure;
     if(terminated) goto success;
@@ -503,7 +816,7 @@ errorcode_t ir_gen_globals_init(ir_builder_t *builder){
 
         ast_type_free(&value_ast_type);
 
-        ir_type_t *ptr_to_type = ir_type_pointer_to(builder->pool, builder->object->ir_module.globals[g].type);
+        ir_type_t *ptr_to_type = ir_type_make_pointer_to(builder->pool, builder->object->ir_module.globals[g].type);
         ir_value_t *destination = build_gvarptr(builder, ptr_to_type, g);
         build_store(builder, value, destination, ast_global->source);
     }
@@ -514,10 +827,10 @@ errorcode_t ir_gen_special_globals(compiler_t *compiler, object_t *object){
     ast_global_t *globals = object->ast.globals;
     length_t globals_length = object->ast.globals_length;
 
-    for(length_t g = 0; g != globals_length; g++){
-        ast_global_t *ast_global = &globals[g];
+    for(length_t i = 0; i != globals_length; i++){
+        ast_global_t *ast_global = &globals[i];
         if(!(ast_global->traits & AST_GLOBAL_SPECIAL)) continue;
-        if(ir_gen_special_global(compiler, object, ast_global, g)) return FAILURE;
+        if(ir_gen_special_global(compiler, object, ast_global, i)) return FAILURE;
     }
 
     return SUCCESS;
@@ -529,15 +842,6 @@ errorcode_t ir_gen_special_global(compiler_t *compiler, object_t *object, ast_gl
     ir_module_t *ir_module = &object->ir_module;
     ir_pool_t *pool = &ir_module->pool;
     type_table_t *type_table = object->ast.type_table;
-
-    ir_type_t *ptr_to_type = ir_pool_alloc(pool, sizeof(ir_type_t));
-    ptr_to_type->kind = TYPE_KIND_POINTER;
-    ptr_to_type->extra = NULL;
-
-    if(ir_gen_resolve_type(compiler, object, &ast_global->type, (ir_type_t**) &ptr_to_type->extra)){
-        internalerrorprintf("ir_gen_special_global() - Could not find IR type for special global variable\n");
-        return FAILURE;
-    }
 
     // NOTE: DANGEROUS: 'global_variable_id' is assumed to be the same between AST and IR global variable lists
     ir_global_t *ir_global = &ir_module->globals[global_variable_id];
@@ -566,8 +870,8 @@ errorcode_t ir_gen_special_global(compiler_t *compiler, object_t *object, ast_gl
         }
 
         // Construct IR Types we need
-        ubyte_ptr_type = ir_type_pointer_to(pool, ubyte_ptr_type);
-        ubyte_ptr_ptr_type = ir_type_pointer_to(pool, ubyte_ptr_type);
+        ubyte_ptr_type = ir_type_make_pointer_to(pool, ubyte_ptr_type);
+        ubyte_ptr_ptr_type = ir_type_make_pointer_to(pool, ubyte_ptr_type);
 
         if(compiler->traits & COMPILER_NO_TYPEINFO){
             ir_global->trusted_static_initializer = build_null_pointer_of_type(pool, ubyte_ptr_ptr_type);
@@ -580,7 +884,7 @@ errorcode_t ir_gen_special_global(compiler_t *compiler, object_t *object, ast_gl
 
         ir_value_t *kinds_array_value = ir_pool_alloc(pool, sizeof(ir_value_t));
         kinds_array_value->value_type = VALUE_TYPE_ARRAY_LITERAL;
-        kinds_array_value->type = ir_type_pointer_to(pool, ubyte_ptr_type);
+        kinds_array_value->type = ir_type_make_pointer_to(pool, ubyte_ptr_type);
         kinds_array_value->extra = kinds_array_literal;
         
         ir_value_t **array_values = ir_pool_alloc(pool, sizeof(ir_value_t*) * (MAX_ANY_TYPE_KIND + 1));
@@ -640,24 +944,26 @@ weak_cstr_t ir_gen_ast_definition_string(ir_pool_t *pool, ast_func_t *ast_func){
     return result;
 }
 
-errorcode_t ir_gen_do_builtin_warn_bad_printf_format(ir_builder_t *builder, funcpair_t pair, ast_type_t *ast_types, ir_value_t **ir_values, source_t source, length_t variadic_length){
+errorcode_t ir_gen_do_builtin_warn_bad_printf_format(ir_builder_t *builder, func_pair_t pair, ast_type_t *ast_types, ir_value_t **ir_values, source_t source, length_t variadic_length){
     // Find index of 'format' argument
     maybe_index_t format_index = -1;
 
-    for(length_t name_index = 0; name_index != pair.ast_func->arity; name_index++){
-        if(streq(pair.ast_func->arg_names[name_index], "format")){
+    ast_func_t *ast_func = &builder->object->ast.funcs[pair.ast_func_id];
+
+    for(length_t name_index = 0; name_index != ast_func->arity; name_index++){
+        if(streq(ast_func->arg_names[name_index], "format")){
             format_index = name_index;
             break;
         }
     }
 
     if(format_index < 0){
-        compiler_panicf(builder->compiler, pair.ast_func->source, "Function marked as __builtin_warn_bad_printf must have an argument named 'format'!\n");
+        compiler_panicf(builder->compiler, ast_func->source, "Function marked as __builtin_warn_bad_printf must have an argument named 'format'!\n");
         return FAILURE;
     }
 
-    if(!ast_type_is_base_of(&pair.ast_func->arg_types[format_index], "String")){
-        compiler_panicf(builder->compiler, pair.ast_func->source, "Function marked as __builtin_warn_bad_printf must have 'format' be a String!\n");
+    if(!ast_type_is_base_of(&ast_func->arg_types[format_index], "String")){
+        compiler_panicf(builder->compiler, ast_func->source, "Function marked as __builtin_warn_bad_printf must have 'format' be a String!\n");
         return FAILURE;
     }
 
@@ -721,7 +1027,8 @@ errorcode_t ir_gen_do_builtin_warn_bad_printf_format(ir_builder_t *builder, func
             return FAILURE;
         }
 
-        ast_type_t *given_type = &ast_types[pair.ast_func->arity + substitutions_gotten++];
+        ast_func_t *ast_func = &builder->object->ast.funcs[pair.ast_func_id];
+        ast_type_t *given_type = &ast_types[ast_func->arity + substitutions_gotten++];
         weak_cstr_t target = NULL;
 
         switch(*p++){

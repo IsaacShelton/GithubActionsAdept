@@ -140,9 +140,9 @@ void build_llvm_null_check_on_failure_block(llvm_context_t *llvm, LLVMValueRef f
 // Generates LLVM globals for IR globals
 errorcode_t ir_to_llvm_globals(llvm_context_t *llvm, object_t *object);
 
-// ---------------- ir_to_llvm_null_check ----------------
+// ---------------- llvm_create_optional_null_check ----------------
 // Generates LLVM instructions to check for null pointer
-void ir_to_llvm_null_check(llvm_context_t *llvm, length_t func_skeleton_index, LLVMValueRef pointer, int line, int column, LLVMBasicBlockRef *out_landing_basicblock);
+void llvm_create_optional_null_check(llvm_context_t *llvm, length_t func_skeleton_index, LLVMValueRef pointer, int line, int column, LLVMBasicBlockRef *out_landing_basicblock);
 
 // ---------------- ir_to_llvm_config_optlvl ----------------
 // Converts optimization level to LLVM optimization constant
@@ -166,7 +166,7 @@ int llvm_string_table_entry_cmp(const void *va, const void *vb);
 LLVMValueRef llvm_create_static_variable(llvm_context_t *llvm, ir_type_t *type, ir_value_t *optional_initializer);
 
 // ---------------- value_catalog_prepare ----------------
-// Creates a value_catalog_t cabable of holding value results
+// Creates a value_catalog_t capable of holding value results
 // for a list of basicblocks
 void value_catalog_prepare(value_catalog_t *out_catalog, ir_basicblocks_t basicblocks);
 

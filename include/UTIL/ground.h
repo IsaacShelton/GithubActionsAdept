@@ -13,16 +13,16 @@ extern "C" {
 */
 
 // Release information
-#define ADEPT_VERSION_STRING    "2.7"
-#define ADEPT_VERSION_NUMBER    2.7
+#define ADEPT_VERSION_STRING    "2.8"
+#define ADEPT_VERSION_NUMBER    2.8
 #define ADEPT_VERSION_MAJOR     2
-#define ADEPT_VERSION_MINOR     7
+#define ADEPT_VERSION_MINOR     8
 #define ADEPT_VERSION_RELEASE   0
 #define ADEPT_VERSION_QUALIFIER ""
 
 // Previous stable version string
 // (only used by preview builds to ignore "new update" false positives)
-#define ADEPT_PREVIOUS_STABLE_VERSION_STRING "2.6"
+#define ADEPT_PREVIOUS_STABLE_VERSION_STRING "2.7"
 
 #define ADEPT_PACKAGE_MANAGER_SPEC_VERSION 1
 
@@ -79,11 +79,17 @@ typedef struct {
 
 #define NULL_SOURCE (source_t){0, 0, 0}
 
-// ---------------- funcid_t ----------------
+// ---------------- index_id_t ----------------
+// Used as a general-purpose ID
+#define MAX_INDEX_ID     0xFFFFFFFE
+#define INVALID_INDEX_ID 0xFFFFFFFF
+typedef uint32_t index_id_t;
+
+// ---------------- func_id_t ----------------
 // Used as an ID to refer to functions
-#define MAX_FUNCID      0xFFFFFFFE
-#define INVALID_FUNC_ID 0xFFFFFFFF
-typedef uint32_t funcid_t;
+#define MAX_FUNC_ID     MAX_INDEX_ID
+#define INVALID_FUNC_ID INVALID_INDEX_ID
+typedef index_id_t func_id_t;
 
 // ---------------- maybe_index_t ----------------
 typedef long long maybe_index_t;
@@ -134,7 +140,7 @@ inline lenstr_t cstr_to_lenstr(char *cstr){
 #define typecast(TYPE, VALUE) ((TYPE)(VALUE))
 
 // ---------------- streq ----------------
-// Returns whether two null-termianted strings are equal
+// Returns whether two null-terminated strings are equal
 // Equivalent to 'strcmp(STRING, VALUE) == 0)'
 #define streq(STRING, VALUE) (strcmp((STRING), (VALUE)) == 0)
 

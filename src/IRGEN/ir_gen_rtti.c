@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "AST/POLY/ast_resolve.h"
 #include "AST/ast.h"
 #include "AST/ast_layout.h"
 #include "AST/ast_poly_catalog.h"
@@ -63,10 +64,10 @@ errorcode_t ir_gen_rtti_fetch_rtti_types(ir_module_t *ir_module, ir_rtti_types_t
     }
 
     // Turn 'ubyte' type into '*ubyte' type
-    out_rtti_types->ubyte_ptr_type = ir_type_pointer_to(pool, out_rtti_types->ubyte_ptr_type);
+    out_rtti_types->ubyte_ptr_type = ir_type_make_pointer_to(pool, out_rtti_types->ubyte_ptr_type);
 
     // Make '*AnyType' type
-    out_rtti_types->any_type_ptr_type = ir_type_pointer_to(pool, out_rtti_types->any_type_type);
+    out_rtti_types->any_type_ptr_type = ir_type_make_pointer_to(pool, out_rtti_types->any_type_type);
 
     // Fetch 'usize' type
     out_rtti_types->usize_type = ir_module->common.ir_usize;
@@ -87,7 +88,7 @@ errorcode_t ir_gen__types__placeholder(object_t *object, ir_global_t *ir_global)
     }
 
     // Construct '**AnyType' null pointer and set it as __types__'s initializer
-    ir_type_t *any_type_ptr_ptr_type = ir_type_pointer_to(pool, ir_type_pointer_to(pool, any_type_type));
+    ir_type_t *any_type_ptr_ptr_type = ir_type_make_pointer_to(pool, ir_type_make_pointer_to(pool, any_type_type));
     ir_global->trusted_static_initializer = build_null_pointer_of_type(pool, any_type_ptr_ptr_type);
     return SUCCESS;
 }
@@ -412,7 +413,7 @@ errorcode_t ir_gen__types__composite_entry_get_info(object_t *object, ir_rtti_ty
         maybe_weak_generics_length = generic_base_elem->generics_length;
 
         // Find polymorphic composite
-        core_composite_info = (ast_composite_t*) ast_polymorphic_composite_find_exact(&object->ast, name);
+        core_composite_info = (ast_composite_t*) ast_poly_composite_find_exact(&object->ast, name);
     } else if(first_ast_elem->id == AST_ELEM_BASE){
         name = ((ast_elem_base_t*) first_ast_elem)->base;
         
@@ -441,10 +442,10 @@ errorcode_t ir_gen__types__composite_entry_get_info(object_t *object, ir_rtti_ty
     }
 
     if(is_polymorphic){
-        ast_polymorphic_composite_t *template = (ast_polymorphic_composite_t*) core_composite_info;
+        ast_poly_composite_t *template = (ast_poly_composite_t*) core_composite_info;
 
         if(template->generics_length != maybe_weak_generics_length){
-            internalerrorprintf("ir_gen__types__composite_entry_get_into() - Mismatching type parementer count for polymorphic composite '%s' when generating runtime type table!\n", name);
+            internalerrorprintf("ir_gen__types__composite_entry_get_into() - Mismatching type parameter count for polymorphic composite '%s' when generating runtime type table!\n", name);
             return FAILURE;
         }
 
@@ -494,7 +495,7 @@ ir_value_t *ir_gen__types__composite_entry_members_array(compiler_t *compiler, o
 
         // Resolve any polymorphics in field type
         if(info->core_composite_info->is_polymorphic){
-            if(resolve_type_polymorphics(compiler, type_table, &info->poly_catalog, unprocessed_field_type, &field_type))
+            if(ast_resolve_type_polymorphs(compiler, type_table, &info->poly_catalog, unprocessed_field_type, &field_type))
                 return NULL;
         } else {
             field_type = *unprocessed_field_type;

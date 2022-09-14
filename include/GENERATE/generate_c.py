@@ -137,6 +137,7 @@ tokens = [
     Token("break"                 , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "break keyword"                     ),
     Token("case"                  , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "case keyword"                      ),
     Token("cast"                  , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "cast keyword"                      ),
+    Token("class"                 , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "class keyword"                     ),
     Token("const"                 , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "const keyword"                     ),
     Token("constructor"           , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "constructor keyword"               ),
     Token("continue"              , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "continue keyword"                  ),
@@ -150,6 +151,7 @@ tokens = [
     Token("embed"                 , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "embed keyword"                     ),
     Token("enum"                  , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "enum keyword"                      ),
     Token("exhaustive"            , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "exhaustive keyword"                ),
+    Token("extends"               , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "extends keyword"                   ),
     Token("external"              , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "external keyword"                  ),
     Token("fallthrough"           , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "fallthrough keyword"               ),
     Token("false"                 , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "false keyword"                     ),
@@ -169,6 +171,7 @@ tokens = [
     Token("null"                  , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "null keyword"                      ),
     Token("or"                    , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "or keyword"                        ),
     Token("out"                   , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "out keyword"                       ),
+    Token("override"              , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "override keyword"                  ),
     Token("packed"                , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "packed keyword"                    ),
     Token("pragma"                , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "pragma keyword"                    ),
     Token("private"               , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "private keyword"                   ),
@@ -195,6 +198,7 @@ tokens = [
     Token("va_end"                , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "va_end keyword"                    ),
     Token("va_start"              , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "va_start keyword"                  ),
     Token("verbatim"              , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "verbatim keyword"                  ),
+    Token("virtual"               , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "virtual keyword"                   ),
     Token("while"                 , TokenType.KEYWORD      , ExtraDataFormat.ID_ONLY    , "while keyword"                     )
 ]
 

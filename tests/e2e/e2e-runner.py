@@ -13,7 +13,7 @@ def run_all_tests():
     
     test("Adept",
         [executable],
-        lambda output: b"     /\xe2\xe2\\\n    /    \\    \n   /      \\    \n  /   /\\   \\        The Adept Compiler v2.7 - (c) 2016-2022 Isaac Shelton\n /   /\\__   \\\n/___/    \\___\\\n\nUsage: adept [options] [filename]\n\nOptions:\n    -h, --help        Display this message\n    -e                Execute resulting executable\n    -w                Disable compiler warnings\n    -o FILENAME       Output to FILENAME (relative to working directory)\n    -n FILENAME       Output to FILENAME (relative to file)\n    -c                Emit object file\n    -O0,-O1,-O2,-O3   Set optimization level\n    --windowed        Don't open console with executable (only applies to Windows)\n    -std=2.x          Set standard library version\n    --version         Display compiler version\n    --root            Display root folder\n    --help-advanced   Show lesser used compiler flags\n" in output
+        lambda output: b"     /\xe2\xe2\\\n    /    \\    \n   /      \\    \n  /   /\\   \\        The Adept Compiler v2.8 - (c) 2016-2022 Isaac Shelton\n /   /\\__   \\\n/___/    \\___\\\n\nUsage: adept [options] [filename]\n\nOptions:\n    -h, --help        Display this message\n    -e                Execute resulting executable\n    -w                Disable compiler warnings\n    -o FILENAME       Output to FILENAME (relative to working directory)\n    -n FILENAME       Output to FILENAME (relative to file)\n    -c                Emit object file\n    -O0,-O1,-O2,-O3   Set optimization level\n    --windowed        Don't open console with executable (only applies to Windows)\n    -std=2.x          Set standard library version\n    --version         Display compiler version\n    --root            Display root folder\n    --help-advanced   Show lesser used compiler flags\n" in output
     )
     test("address", [executable, join(src_dir, "address/main.adept")], compiles)
     test("aliases", [executable, join(src_dir, "aliases/main.adept")], compiles)
@@ -44,6 +44,33 @@ def run_all_tests():
     test("cast", [executable, join(src_dir, "cast/main.adept")], compiles)
     test("character_literals", [executable, join(src_dir, "character_literals/main.adept")], compiles)
     test("circular_pointers", [executable, join(src_dir, "circular_pointers/main.adept")], compiles)
+    test("class", [executable, join(src_dir, "class/main.adept")], compiles)
+    test("class_extends", [executable, join(src_dir, "class_extends/main.adept")], compiles)
+    test("class_extends check layout", 
+        [join(src_dir, "class_extends/main")], 
+        lambda output: b"Animal:\n - __vtable__\n - name\nDog:\n - __vtable__\n - name\n - age\nGoldenRetriever:\n - __vtable__\n - name\n - age" in output)
+    test("class_missing_constructor",
+        [executable, join(src_dir, "class_missing_constructor/main.adept")],
+        lambda output: b"main.adept:2:1: error: Class is missing constructor\n  2| class ThisIsMissingConstructor ()" in output,
+        expected_exitcode=1)
+    test("class_virtual_methods_1", [executable, join(src_dir, "class_virtual_methods_1/main.adept")], compiles)
+    test("class_virtual_methods_2", [executable, join(src_dir, "class_virtual_methods_2/main.adept")], compiles)
+    test("class_virtual_methods_3_missing_override",
+        [executable, join(src_dir, "class_virtual_methods_3_missing_override/main.adept")],
+        lambda output: b"main.adept:20:5: error: Method is used as virtual dispatchee but is missing 'override' keyword\n  20|     func getName *ubyte {" in output,
+        expected_exitcode=1)
+    test("class_virtual_methods_4", [executable, join(src_dir, "class_virtual_methods_4/main.adept")], compiles)
+    test("class_virtual_methods_5", [executable, join(src_dir, "class_virtual_methods_5/main.adept")], compiles)
+    test("class_virtual_methods_6", [executable, join(src_dir, "class_virtual_methods_6/main.adept")], compiles)
+    test("class_virtual_methods_7_incorrect_return_type",
+        [executable, join(src_dir, "class_virtual_methods_7_incorrect_return_type/main.adept")],
+        lambda output: b"main.adept:23:27: error: Incorrect return type for method override, expected '*ubyte'\n  23|     override func getName int {\n                                ^^^" in output,
+        expected_exitcode=1)
+    test("class_virtual_methods_8_unused_override",
+        [executable, join(src_dir, "class_virtual_methods_8_unused_override/main.adept")],
+        lambda output: b"main.adept:10:5: error: No virtual method exists to override\n  10|     override func myUnusedOverride {\n          ^^^^^^^^" in output,
+        expected_exitcode=1)
+    test("class_virtual_methods_9", [executable, join(src_dir, "class_virtual_methods_9/main.adept")], compiles)
     test("colons_alternative_syntax", [executable, join(src_dir, "colons_alternative_syntax/main.adept")], compiles)
     test("complement", [executable, join(src_dir, "complement/main.adept")], compiles)
     test("complex_composite_rtti", [executable, join(src_dir, "complex_composite_rtti/main.adept")], compiles)
@@ -54,6 +81,7 @@ def run_all_tests():
     test("constants_old_style", [executable, join(src_dir, "constants_old_style/main.adept")], compiles)
     test("constants_scoped", [executable, join(src_dir, "constants_scoped/main.adept")], compiles)
     test("constructor", [executable, join(src_dir, "constructor/main.adept")], compiles)
+    test("constructor_with_defaults", [executable, join(src_dir, "constructor_with_defaults/main.adept")], compiles)
     test("continue", [executable, join(src_dir, "continue/main.adept")], compiles)
     test("continue_to", [executable, join(src_dir, "continue_to/main.adept")], compiles)
     test("default_args", [executable, join(src_dir, "default_args/main.adept")], compiles)
@@ -96,6 +124,7 @@ def run_all_tests():
     test("embed", [executable, join(src_dir, "embed/main.adept")], compiles)
     test("entry_point", [executable, join(src_dir, "entry_point/main.adept")], compiles)
     test("enums", [executable, join(src_dir, "enums/main.adept")], compiles)
+    test("enums_foreign", [executable, join(src_dir, "enums_foreign/main.adept")], compiles)
     test("equals_func", [executable, join(src_dir, "equals_func/main.adept")], compiles)
     test("external", [executable, join(src_dir, "external/main.adept")], compiles)
     test("fallthrough", [executable, join(src_dir, "fallthrough/main.adept")], compiles)
@@ -133,6 +162,7 @@ def run_all_tests():
     test("initializer_list_fixed", [executable, join(src_dir, "initializer_list_fixed/main.adept")], compiles)
     test("inline_declaration", [executable, join(src_dir, "inline_declaration/main.adept")], compiles)
     test("inner_struct", [executable, join(src_dir, "inner_struct/main.adept")], compiles)
+    test("inner_struct_polymorphic", [executable, join(src_dir, "inner_struct_polymorphic/main.adept")], compiles)
     test("int_ptr_cast", [executable, join(src_dir, "int_ptr_cast/main.adept")], compiles)
     test("internal_deference", [executable, join(src_dir, "internal_deference/main.adept")], compiles)
     test("internal_deference_generic", [executable, join(src_dir, "internal_deference_generic/main.adept")], compiles)
@@ -182,6 +212,13 @@ def run_all_tests():
     test("pass_func", [executable, join(src_dir, "pass_func/main.adept")], compiles)
     test("permissive_blocks", [executable, join(src_dir, "permissive_blocks/main.adept")], compiles)
     test("poly_default_args", [executable, join(src_dir, "poly_default_args/main.adept")], compiles)
+    test("poly_prereq_extends", [executable, join(src_dir, "poly_prereq_extends/main.adept")], compiles)
+    test("poly_prereq_extends_fail",
+        [executable,
+        join(src_dir, "poly_prereq_extends_fail/main.adept")],
+        lambda output: b"main.adept:28:9: error: Undeclared function do_something(String)\n" in output,
+        expected_exitcode=1
+    )
     test("polycount", [executable, join(src_dir, "polycount/main.adept")], compiles)
     test("polymorphic_functions", [executable, join(src_dir, "polymorphic_functions/main.adept")], compiles)
     test("polymorphic_inner", [executable, join(src_dir, "polymorphic_inner/main.adept")], compiles)
@@ -200,6 +237,7 @@ def run_all_tests():
     test("return_every_case", [executable, join(src_dir, "return_every_case/main.adept")], compiles)
     test("return_matching", [executable, join(src_dir, "return_matching/main.adept")], compiles)
     test("return_ten", [executable, join(src_dir, "return_ten/main.adept")], compiles)
+    test("runtime_resource", [executable, join(src_dir, "runtime_resource/main.adept")], compiles)
     test("scientific", [executable, join(src_dir, "scientific/main.adept")], compiles)
     test("scoped_variables", [executable, join(src_dir, "scoped_variables/main.adept")], compiles)
     test("search_path", [executable, join(src_dir, "search_path/main.adept")], compiles)
@@ -253,5 +291,11 @@ def run_all_tests():
     test("while_continue", [executable, join(src_dir, "while_continue/main.adept")], compiles)
     test("windowed", [executable, join(src_dir, "windowed/main.adept")], compiles)
     test("winmain_entry", [executable, join(src_dir, "winmain_entry/main.adept")], compiles, only_on='windows')
+    test("z_curl",
+        [executable,
+        join(src_dir, "z_curl/main.adept"),
+        "-e"],
+        lambda output: b"<html>" in output and b"</html>" in output,
+        expected_exitcode=0)
 
 e2e_framework_run(run_all_tests)

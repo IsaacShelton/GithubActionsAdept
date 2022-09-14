@@ -135,6 +135,7 @@ typedef struct {
     DERIVE_ELEM_POLYMORPH;
 
     strong_cstr_t similarity_prerequisite;
+    ast_type_t extends;
 } ast_elem_polymorph_prereq_t;
 
 // ---------------- ast_elem_generic_base_t ----------------
@@ -191,6 +192,10 @@ void ast_types_free_fully(ast_type_t *types, length_t length);
 // ---------------- ast_type_prepend_ptr ----------------
 // Prepends a pointer to an AST type
 void ast_type_prepend_ptr(ast_type_t *type);
+
+// ---------------- ast_type_pointer_to ----------------
+// Takes an AST type and returns it will a pointer prepended
+ast_type_t ast_type_pointer_to(ast_type_t type);
 
 // ---------------- ast_type_str ----------------
 // Generates a c-string given an AST type
@@ -267,6 +272,10 @@ bool ast_type_is_generic_base_ptr(const ast_type_t *type);
 // ---------------- ast_type_is_fixed_array ----------------
 // Returns whether an AST type is a fixed array
 bool ast_type_is_fixed_array(const ast_type_t *type);
+
+// ---------------- ast_type_is_fixed_array_like ----------------
+// Returns whether an AST type is a fixed array or poly count fixed array
+bool ast_type_is_fixed_array_like(const ast_type_t *type);
 
 // ---------------- ast_type_is_func ----------------
 // Returns whether an AST type is a function pointer

@@ -112,9 +112,10 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
                && !streq(read, "2.4") 
                && !streq(read, "2.5") 
                && !streq(read, "2.6")
-               && !streq(read, "2.7")){
+               && !streq(read, "2.7")
+               && !streq(read, "2.8")){
             compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*i], "This compiler doesn't support version '%s'", read);
-            puts("\nSupported Versions: '2.7', '2.6', '2.5', '2.4', '2.3', '2.2', '2.1', '2.0'");
+            puts("\nSupported Versions: '2.8', '2.7', '2.6', '2.5', '2.4', '2.3', '2.2', '2.1', '2.0'");
             return FAILURE;
         }
 
@@ -280,6 +281,7 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
         else if(streq(read, "less"))       ctx->compiler->optimization = OPTIMIZATION_LESS;
         else if(streq(read, "normal"))     ctx->compiler->optimization = OPTIMIZATION_DEFAULT;
         else if(streq(read, "aggressive")) ctx->compiler->optimization = OPTIMIZATION_AGGRESSIVE;
+        else if(streq(read, "nothing"))    ctx->compiler->optimization = OPTIMIZATION_ABSOLUTELY_NOTHING;
         else {
             // Invalid optimization level
             compiler_panic(ctx->compiler, ctx->tokenlist->sources[*i], "Invalid optimization level after 'pragma optimization'");

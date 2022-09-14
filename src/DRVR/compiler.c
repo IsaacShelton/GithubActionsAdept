@@ -46,6 +46,7 @@
 #include "DBG/debug.h"
 #include "INFER/infer.h"
 #include "IR/ir.h"
+#include "IR/ir_module.h"
 #include "IRGEN/ir_gen.h"
 #include "IRGEN/ir_gen_polymorphable.h"
 #endif
@@ -124,14 +125,12 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
     #ifdef ADEPT_ENABLE_PACKAGE_MANAGER
     {
         // Read persistent config file
-        strong_cstr_t config_filename = mallocandsprintf("%sadept.config", compiler->root);
+        compiler->config_filename = mallocandsprintf("%sadept.config", compiler->root);
         weak_cstr_t config_warning = NULL;
 
-        if(!config_read(&compiler->config, config_filename, &config_warning) && config_warning){
+        if(!config_read(&compiler->config, compiler->config_filename, &config_warning) && config_warning){
             yellowprintf("%s\n", config_warning);
         }
-
-        free(config_filename);
     }
     #endif
 
@@ -218,10 +217,11 @@ void compiler_init(compiler_t *compiler){
     compiler->objects_length = 0;
     compiler->objects_capacity = 4;
     config_prepare(&compiler->config, NULL);
+    compiler->config_filename = NULL;
     compiler->traits = TRAIT_NONE;
     compiler->ignore = TRAIT_NONE;
     compiler->output_filename = NULL;
-    compiler->optimization = OPTIMIZATION_NONE;
+    compiler->optimization = OPTIMIZATION_LESS;
     compiler->checks = TRAIT_NONE;
 
     #if __linux__
@@ -267,6 +267,7 @@ void compiler_free(compiler_t *compiler){
     compiler_free_error(compiler);
     compiler_free_warnings(compiler);
     config_free(&compiler->config);
+    free(compiler->config_filename);
 }
 
 void compiler_free_objects(compiler_t *compiler){
@@ -324,9 +325,9 @@ void compiler_free_warnings(compiler_t *compiler){
 }
 
 object_t* compiler_new_object(compiler_t *compiler){
-    // NOTE: This process needs to be made thread-safe eventually
-    // NOTE: Returns pointer to object that the compiler will free
+    // NOTE: Returns pointer to object that the compiler itself will free when destroyed
 
+    // Manually manage resizing of objects list
     if(compiler->objects_length == compiler->objects_capacity){
         object_t **new_objects = malloc(sizeof(object_t*) * compiler->objects_length * 2);
         memcpy(new_objects, compiler->objects, sizeof(object_t*) * compiler->objects_length);
@@ -335,24 +336,27 @@ object_t* compiler_new_object(compiler_t *compiler){
         compiler->objects_capacity *= 2;
     }
 
-    object_t **object_reference = &compiler->objects[compiler->objects_length];
-    (*object_reference) = malloc(sizeof(object_t));
-    (*object_reference)->filename = NULL;
-    (*object_reference)->full_filename = NULL;
-    (*object_reference)->compilation_stage = COMPILATION_STAGE_NONE;
-    (*object_reference)->index = compiler->objects_length++;
-    (*object_reference)->traits = OBJECT_NONE;
-    (*object_reference)->default_stdlib = NULL;
-    (*object_reference)->current_namespace = NULL;
-    (*object_reference)->current_namespace_length = 0;
-    return *object_reference;
+    // Allocate object on heap
+    compiler->objects[compiler->objects_length++] = malloc(sizeof(object_t));
+
+    // Fill in some default values
+    object_t *object = compiler->objects[compiler->objects_length - 1];
+    object->filename = NULL;
+    object->full_filename = NULL;
+    object->compilation_stage = COMPILATION_STAGE_NONE;
+    object->index = compiler->objects_length - 1;
+    object->traits = OBJECT_NONE;
+    object->default_stdlib = NULL;
+    object->current_namespace = NULL;
+    object->current_namespace_length = 0;
+    return object;
 }
 
 void compiler_final_words(compiler_t *compiler){
     #ifndef ADEPT_INSIGHT_BUILD
     
     if(compiler->show_unused_variables_how_to_disable){
-        printf("\nTo disable warnings about unused variables, you can:\n");
+        printf("\nIf you'd like to disable unused variables warnings, you can:\n");
         printf("    * Prefix them with '_'\n");
         printf("    * Add 'pragma ignore_unused' to your file\n");
         printf("    * Pass '--ignore-unused' to the compiler\n");
@@ -372,6 +376,12 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 return ALT_FAILURE;
             } else if(streq(argv[arg_index], "-H") || streq(argv[arg_index], "--help-advanced")){
                 show_help(true);
+                compiler->result_flags |= COMPILER_RESULT_SUCCESS;
+                return ALT_FAILURE;
+            } else if(streq(argv[arg_index], "--update")){
+                #ifndef ADEPT_INSIGHT_BUILD
+                try_update_installation(&compiler->config, compiler->config_filename, NULL, NULL);
+                #endif
                 compiler->result_flags |= COMPILER_RESULT_SUCCESS;
                 return ALT_FAILURE;
             } else if(streq(argv[arg_index], "-p") || streq(argv[arg_index], "--package")){
@@ -407,6 +417,8 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->traits |= COMPILER_NO_REMOVE_OBJECT;
             } else if(streq(argv[arg_index], "-c")){
                 compiler->traits |= COMPILER_NO_REMOVE_OBJECT | COMPILER_EMIT_OBJECT;
+            } else if(streq(argv[arg_index], "-Onothing")){
+                compiler->optimization = OPTIMIZATION_ABSOLUTELY_NOTHING;
             } else if(streq(argv[arg_index], "-O0")){
                 compiler->optimization = OPTIMIZATION_NONE;
             } else if(streq(argv[arg_index], "-O1")){
@@ -757,6 +769,7 @@ void show_help(bool show_advanced_options){
     printf("    --dump            Dump AST, IAST, & IR to files\n");
     printf("    --llvmir          Show generated LLVM representation\n");
     printf("    --no-verification Don't verify backend output\n");
+    printf("    --no-result       Don't create final binary\n");
     #endif // ENABLE_DEBUG_FEATURES
 }
 
@@ -1105,7 +1118,7 @@ void compiler_undeclared_function(compiler_t *compiler, object_t *object, source
 
     ast_t *ast = &object->ast;
     ast_type_t *type_of_this = is_method ? &types[0] : NULL;
-    funcid_list_t possibilities = compiler_possibilities(compiler, object, name, type_of_this);
+    func_id_list_t possibilities = compiler_possibilities(compiler, object, name, type_of_this);
 
     if(possibilities.length == 0){
         // No other function with that name exists
@@ -1121,8 +1134,15 @@ void compiler_undeclared_function(compiler_t *compiler, object_t *object, source
         goto success;
     } else {
         // Other functions have the same name
-        ast_type_t *arg_types = is_method ? &types[1] : types;
-        strong_cstr_t args_string = strong_cstr_empty_if_null(make_args_string(arg_types, NULL, arity, TRAIT_NONE));
+
+        strong_cstr_t args_string;
+        
+        if(is_method){
+            args_string = strong_cstr_empty_if_null(make_args_string(&types[1], NULL, arity - 1, TRAIT_NONE));
+        } else {
+            args_string = strong_cstr_empty_if_null(make_args_string(types, NULL, arity, TRAIT_NONE));
+        }
+
         strong_cstr_t gives_string = gives ? ast_type_str(gives) : NULL;
 
         if(is_method){
@@ -1147,7 +1167,7 @@ void compiler_undeclared_function(compiler_t *compiler, object_t *object, source
     }
 
 success:
-    funcid_list_free(&possibilities);
+    func_id_list_free(&possibilities);
 }
 
 // TODO: Refactor/move
@@ -1161,7 +1181,7 @@ static errorcode_t method_subject_is_possible(compiler_t *compiler, object_t *ob
         #else
             ast_poly_catalog_t catalog;
             ast_poly_catalog_init(&catalog);
-            errorcode_t res = ir_gen_polymorphable(compiler, object, potential_subject, subject, &catalog);
+            errorcode_t res = ir_gen_polymorphable(compiler, object, potential_subject, subject, &catalog, false);
             ast_poly_catalog_free(&catalog);
             return res;
         #endif
@@ -1170,20 +1190,22 @@ static errorcode_t method_subject_is_possible(compiler_t *compiler, object_t *ob
     return ast_types_identical(potential_subject, subject) ? SUCCESS : FAILURE;
 }
 
-funcid_list_t compiler_possibilities(compiler_t *compiler, object_t *object, weak_cstr_t name, ast_type_t *methods_only_type_of_this){
+func_id_list_t compiler_possibilities(compiler_t *compiler, object_t *object, weak_cstr_t name, ast_type_t *methods_only_type_of_this){
     ast_t *ast = &object->ast;
-    funcid_list_t list = {0};
+    func_id_list_t list = {0};
 
     for(length_t id = 0; id != ast->funcs_length; id++){
-        if(streq(ast->funcs[id].name, name)){
-            if(methods_only_type_of_this){
-                if(!ast_func_is_method(&ast->funcs[id])) continue;
+        ast_func_t *func = &ast->funcs[id];
 
-                errorcode_t errorcode = method_subject_is_possible(compiler, object, methods_only_type_of_this, &ast->funcs[id].arg_types[0]);
+        if(streq(func->name, name) && (func->traits & (AST_FUNC_VIRTUAL | AST_FUNC_OVERRIDE | AST_FUNC_NO_SUGGEST)) == TRAIT_NONE){
+            if(methods_only_type_of_this){
+                if(!ast_func_is_method(func)) continue;
+
+                errorcode_t errorcode = method_subject_is_possible(compiler, object, methods_only_type_of_this, &func->arg_types[0]);
                 if(errorcode == ALT_FAILURE) break;
                 if(errorcode == FAILURE) continue;
             }
-            funcid_list_append(&list, id);
+            func_id_list_append(&list, id);
         }
     }
 

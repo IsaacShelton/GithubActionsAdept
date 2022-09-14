@@ -10,13 +10,15 @@
 
 #include "IR/ir.h"
 #include "IR/ir_func_endpoint.h"
+#include "IR/ir_type_map.h"
 #include "AST/ast_type.h"
 #include "AST/ast_poly_catalog.h"
 #include "UTIL/ground.h"
-#include "DRVR/object.h"
 #include "DRVR/compiler.h"
+#include "DRVR/object.h"
 #include "BRIDGE/bridge.h"
-#include "BRIDGEIR/funcpair.h"
+#include "UTIL/func_pair.h"
+#include "UTIL/list.h"
 
 // ---------------- ir_builder_t ----------------
 // Container for storing general information
@@ -40,8 +42,8 @@ typedef struct ir_builder {
     ir_type_map_t *type_map;
     compiler_t *compiler;
     object_t *object;
-    funcid_t ast_func_id;
-    funcid_t ir_func_id;
+    func_id_t ast_func_id;
+    func_id_t ir_func_id;
     bridge_scope_t *scope;
     length_t next_var_id;
     troolean has_string_struct;
@@ -53,13 +55,15 @@ typedef struct ir_builder {
     ir_type_t *s8_type;
     ir_type_t *ptr_type;
     type_table_t *type_table;
-    funcid_t noop_defer_function;
+    func_id_t noop_defer_function;
     bool has_noop_defer_function;
 } ir_builder_t;
 
+#include "IR/ir_module.h"
+
 // ---------------- ir_builder_init ----------------
 // Initializes an IR builder
-void ir_builder_init(ir_builder_t *builder, compiler_t *compiler, object_t *object, funcid_t ast_func_id, funcid_t ir_func_id, bool static_builder);
+void ir_builder_init(ir_builder_t *builder, compiler_t *compiler, object_t *object, func_id_t ast_func_id, func_id_t ir_func_id, bool static_builder);
 
 // ---------------- build_basicblock ----------------
 // Builds a new basic block in the current function
@@ -75,6 +79,10 @@ void build_using_basicblock(ir_builder_t *builder, length_t basicblock_id);
 // Builds a new undetermined instruction
 ir_instr_t *build_instruction(ir_builder_t *builder, length_t size);
 
+// ---------------- ir_builder_built_instruction ----------------
+// Returns the most recently built instruction
+ir_instr_t *ir_builder_built_instruction(ir_builder_t *builder);
+
 // ---------------- build_value_from_prev_instruction ----------------
 // Builds an IR value from the result of the previous instruction
 ir_value_t *build_value_from_prev_instruction(ir_builder_t *builder);
@@ -85,15 +93,15 @@ ir_value_t *build_value_from_prev_instruction(ir_builder_t *builder);
 ir_value_t *build_varptr(ir_builder_t *builder, ir_type_t *ptr_type, bridge_var_t *var);
 
 // ---------------- build_lvarptr ----------------
-// Builds a localvarptr instruction
+// Builds a local varptr instruction
 ir_value_t *build_lvarptr(ir_builder_t *builder, ir_type_t *ptr_type, length_t variable_id);
 
 // ---------------- build_varptr ----------------
-// Builds a globalvarptr instruction
+// Builds a global varptr instruction
 ir_value_t *build_gvarptr(ir_builder_t *builder, ir_type_t *ptr_type, length_t variable_id);
 
 // ---------------- build_svarptr ----------------
-// Builds a staticvarptr instruction
+// Builds a static varptr instruction
 ir_value_t *build_svarptr(ir_builder_t *builder, ir_type_t *ptr_type, length_t variable_id);
 
 // ---------------- build_malloc ----------------
@@ -114,8 +122,15 @@ void build_store(ir_builder_t *builder, ir_value_t *value, ir_value_t *destinati
 
 // ---------------- build_call ----------------
 // Builds a call instruction
-// NOTE: If 'return_result_value' is false, then NULL will be returned (in an effort to avoid unnecessary allocations)
-ir_value_t *build_call(ir_builder_t *builder, funcid_t ir_func_id, ir_type_t *result_type, ir_value_t **arguments, length_t arguments_length, bool return_result_value);
+ir_value_t *build_call(ir_builder_t *builder, func_id_t ir_func_id, ir_type_t *result_type, ir_value_t **arguments, length_t arguments_length);
+
+// ---------------- build_call_ignore_result ----------------
+// Builds a call instruction, but doesn't give back a reference to the result
+void build_call_ignore_result(ir_builder_t *builder, func_id_t ir_func_id, ir_type_t *result_type, ir_value_t **arguments, length_t arguments_length);
+
+// ---------------- build_call_address ----------------
+// Builds a call function address instruction
+ir_value_t *build_call_address(ir_builder_t *builder, ir_type_t *return_type, ir_value_t *address, ir_value_t **arg_values, length_t arity);
 
 // ---------------- build_break ----------------
 // Builds a break instruction
@@ -170,7 +185,7 @@ ir_value_t *build_const_add(ir_pool_t *pool, ir_value_t *a, ir_value_t *b);
 
 // ---------------- build_static_array ----------------
 // Builds a static array
-ir_value_t *build_static_array(ir_pool_t *pool, ir_type_t *type, ir_value_t **values, length_t length);
+ir_value_t *build_static_array(ir_pool_t *pool, ir_type_t *item_type, ir_value_t **values, length_t length);
 
 // ---------------- build_anon_global ----------------
 // Builds an anonymous global variable
@@ -226,6 +241,11 @@ ir_value_t *build_null_pointer(ir_pool_t *pool);
 // ---------------- build_null_pointer_of_type ----------------
 // Builds a literal null pointer value
 ir_value_t *build_null_pointer_of_type(ir_pool_t *pool, ir_type_t *type);
+
+// ---------------- build_literal_func_addr ----------------
+// Builds a literal function address
+ir_value_t *build_func_addr(ir_pool_t *pool, ir_type_t *result_type, func_id_t ir_func_id);
+ir_value_t *build_func_addr_by_name(ir_pool_t *pool, ir_type_t *result_type, const char *name);
 
 // ---------------- build_cast ----------------
 // Casts an IR value to an IR type
@@ -398,13 +418,13 @@ errorcode_t handle_children_pass(ir_builder_t *builder);
 // Returns whether a type could have __pass__ methods that need calling
 bool could_have_pass(ast_type_t *ast_type);
 
-// ---------------- handle_assign_management ----------------
+// ---------------- try_user_defined_assign ----------------
 // Handles '__assign__' management method calls
 // NOTE: 'ast_destination_type' is not a pointer, but value provided is mutable
-// NOTE: Returns SUCCESS if value was utilized in deference
-//       Returns FAILURE if value was not utilized in deference
+// NOTE: Returns SUCCESS if value was utilized in assignment
+//       Returns FAILURE if value was not utilized in assignment
 //       Returns ALT_FAILURE if a compile time error occurred
-errorcode_t handle_assign_management(
+errorcode_t try_user_defined_assign(
     ir_builder_t *builder,
     ir_value_t *value,
     ast_type_t *value_ast_type,
@@ -429,41 +449,39 @@ ir_value_t *handle_access_management(ir_builder_t *builder, ir_value_t *array_mu
 // ---------------- instantiate_poly_func ----------------
 // Instantiates a polymorphic function
 // NOTE: 'instantiation_source' may be NULL_SOURCE
-errorcode_t instantiate_poly_func(compiler_t *compiler, object_t *object, source_t instantiation_source, funcid_t ast_poly_func_id, ast_type_t *types,
+errorcode_t instantiate_poly_func(compiler_t *compiler, object_t *object, source_t instantiation_source, func_id_t ast_poly_func_id, ast_type_t *types,
         length_t types_list_length, ast_poly_catalog_t *catalog, ir_func_endpoint_t *out_endpoint);
+
+// ---------------- instantiate_default_for_virtual_dispatcher ----------------
+// Instantiates (if necessary) a concrete version of the default implementation
+// of a just-instantiated virtual dispatcher.
+errorcode_t instantiate_default_for_virtual_dispatcher(
+    compiler_t *compiler,
+    object_t *object,
+    func_id_t dispatcher_id,
+    source_t instantiation_source,
+    ast_poly_catalog_t *catalog,
+    func_id_t *out_ast_concrete_virtual_origin
+);
 
 // ---------------- attempt_autogen___defer__ ----------------
 // Attempts to auto-generate __defer__ management method
 // NOTE: Does NOT check for existing suitable __defer__ methods
 // NOTE: Returns FAILURE if couldn't auto generate
-errorcode_t attempt_autogen___defer__(compiler_t *compiler, object_t *object, ast_type_t *arg_types, length_t type_list_length, optional_funcpair_t *result);
+errorcode_t attempt_autogen___defer__(compiler_t *compiler, object_t *object, ast_type_t *arg_types, length_t type_list_length, optional_func_pair_t *result);
 
 // ---------------- attempt_autogen___pass__ ----------------
 // Attempts to auto-generate __pass__ management function
 // NOTE: Does NOT check for existing suitable __pass__ functions
 // NOTE: Returns FAILURE if couldn't auto generate
-errorcode_t attempt_autogen___pass__(compiler_t *compiler, object_t *object, ast_type_t *arg_types, length_t type_list_length, optional_funcpair_t *result);
+errorcode_t attempt_autogen___pass__(compiler_t *compiler, object_t *object, ast_type_t *arg_types, length_t type_list_length, optional_func_pair_t *result);
 
 // ---------------- attempt_autogen___assign__ ----------------
 // Attempts to auto-generate __assign__ management method
 // NOTE: Does NOT check for existing suitable __assign__ methods
 // NOTE: Returns FAILURE if couldn't auto generate
 // NOTE: Returns ALT_FAILURE if something went really wrong
-errorcode_t attempt_autogen___assign__(compiler_t *compiler, object_t *object, ast_type_t *arg_types, length_t type_list_length, optional_funcpair_t *result);
-
-// ---------------- resolve_type_polymorphics ----------------
-// Resolves any polymorphic type variables within an AST type
-// NOTE: Will show error messages on failure
-// NOTE: in_type == out_type is allowed
-// NOTE: out_type is same as in_type if out_type == null
-// NOTE: Will also give result to type_table if not NULL and !(compiler->traits & COMPILER_NO_TYPEINFO)
-errorcode_t resolve_type_polymorphics(compiler_t *compiler, type_table_t *type_table, ast_poly_catalog_t *catalog, ast_type_t *in_type, ast_type_t *out_type);
-
-// ---------------- resolve_expr_polymorphics ----------------
-// Resolves any polymorphic type variables within an AST expression
-errorcode_t resolve_expr_polymorphics(compiler_t *compiler, type_table_t *type_table, ast_poly_catalog_t *catalog, ast_expr_t *expr);
-errorcode_t resolve_exprs_polymorphics(compiler_t *compiler, type_table_t *type_table, ast_poly_catalog_t *catalog, ast_expr_t **exprs, length_t count);
-errorcode_t resolve_expr_list_polymorphics(compiler_t *compiler, type_table_t *type_table, ast_poly_catalog_t *catalog, ast_expr_list_t *exprs);
+errorcode_t attempt_autogen___assign__(compiler_t *compiler, object_t *object, ast_type_t *arg_types, length_t type_list_length, optional_func_pair_t *result);
 
 // ---------------- is_allowed_builtin_auto_conversion ----------------
 // Returns whether a builtin auto conversion is allowed
@@ -477,7 +495,7 @@ successful_t ir_builder_get_loop_label_info(ir_builder_t *builder, const char *l
 // ---------------- ir_builder_get_noop_defer_func ----------------
 // Gets no-op defer function
 // Will create if doesn't already exist
-errorcode_t ir_builder_get_noop_defer_func(ir_builder_t *builder, source_t source_on_error, funcid_t *out_ir_func_id);
+errorcode_t ir_builder_get_noop_defer_func(ir_builder_t *builder, source_t source_on_error, func_id_t *out_ir_func_id);
 
 // ---------------- instructions_snapshot_t ----------------
 // Snapshot used to easily reset the forward generation of IR instructions

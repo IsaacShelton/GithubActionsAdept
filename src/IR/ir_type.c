@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "AST/ast.h"
 #include "IR/ir_pool.h"
 #include "IR/ir_type.h"
 #include "UTIL/ground.h"
@@ -87,14 +88,23 @@ bool ir_types_identical(ir_type_t *a, ir_type_t *b){
     return true;
 }
 
-ir_type_t* ir_type_pointer_to(ir_pool_t *pool, ir_type_t *base){
+ir_type_t *ir_type_make(ir_pool_t *pool, unsigned int kind, void *extra_data){
+    ir_type_t *type = ir_pool_alloc(pool, sizeof(ir_type_t));
+    *type = (ir_type_t){
+        .kind = kind,
+        .extra = extra_data,
+    };
+    return type;
+}
+
+ir_type_t* ir_type_make_pointer_to(ir_pool_t *pool, ir_type_t *base){
     ir_type_t *ptr_type = ir_pool_alloc(pool, sizeof(ir_type_t));
     ptr_type->kind = TYPE_KIND_POINTER;
     ptr_type->extra = base;
     return ptr_type;
 }
 
-ir_type_t* ir_type_fixed_array_of(ir_pool_t *pool, length_t length, ir_type_t *base){
+ir_type_t* ir_type_make_fixed_array_of(ir_pool_t *pool, length_t length, ir_type_t *base){
     ir_type_extra_fixed_array_t *extra = ir_pool_alloc(pool, sizeof(ir_type_extra_fixed_array_t));
     extra->length = length;
     extra->subtype = base;
@@ -105,9 +115,40 @@ ir_type_t* ir_type_fixed_array_of(ir_pool_t *pool, length_t length, ir_type_t *b
     return fixed_array_type;
 }
 
-ir_type_t* ir_type_dereference(ir_type_t *type){
+ir_type_t *ir_type_make_function_pointer(ir_pool_t *pool, ir_type_t **arg_types, length_t arity, ir_type_t *return_type, trait_t type_kind_func_traits){
+    ir_type_extra_function_t *extra = ir_pool_alloc(pool, sizeof(ir_type_extra_function_t));
+
+    *extra = (ir_type_extra_function_t){
+        .arg_types = arg_types,
+        .arity = arity,
+        .return_type = return_type,
+        .traits = type_kind_func_traits,
+    };
+
+    return ir_type_make(pool, TYPE_KIND_FUNCPTR, extra);
+}
+
+trait_t ast_func_traits_to_type_kind_func_traits(trait_t ast_func_traits){
+    trait_t type_kind_func_traits = TRAIT_NONE;
+    if(ast_func_traits & AST_FUNC_VARARG)  type_kind_func_traits |= TYPE_KIND_FUNC_VARARG;
+    if(ast_func_traits & AST_FUNC_STDCALL) type_kind_func_traits |= TYPE_KIND_FUNC_STDCALL;
+    return type_kind_func_traits;
+}
+
+ir_type_t *ir_type_dereference(ir_type_t *type){
     if(type->kind != TYPE_KIND_POINTER) return NULL;
     return (ir_type_t*) type->extra;
+}
+
+ir_type_t *ir_type_unwrap(ir_type_t *type){
+    switch(type->kind){
+    case TYPE_KIND_POINTER:
+        return (ir_type_t*) type->extra;
+    case TYPE_KIND_FIXED_ARRAY:
+        return (ir_type_t*) ((ir_type_extra_fixed_array_t*) type->extra)->subtype;
+    default:
+        return type;
+    }
 }
 
 bool ir_type_is_pointer_to(ir_type_t *type, unsigned int child_type_kind){

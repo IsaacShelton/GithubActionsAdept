@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "AST/POLY/ast_resolve.h"
 #include "AST/TYPE/ast_type_identical.h"
 #include "AST/TYPE/ast_type_make.h"
 #include "AST/ast.h"
@@ -14,12 +15,13 @@
 #include "AST/ast_poly_catalog.h"
 #include "AST/ast_type.h"
 #include "BRIDGE/bridge.h"
-#include "BRIDGEIR/funcpair.h"
+#include "UTIL/func_pair.h"
 #include "BRIDGEIR/rtti.h"
 #include "BRIDGE/type_table.h"
 #include "DRVR/compiler.h"
 #include "DRVR/object.h"
 #include "IR/ir.h"
+#include "IR/ir_module.h"
 #include "IR/ir_pool.h"
 #include "IR/ir_type.h"
 #include "IR/ir_value.h"
@@ -64,7 +66,9 @@ errorcode_t ir_gen_expr(ir_builder_t *builder, ast_expr_t *expr, ir_value_t **ir
         *((storage_type*) (*ir_value)->extra) = ((ast_expr_type*) expr)->value;          \
                                                                                          \
         /* Result type is an AST type with that typename */                              \
-        if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone(typename)); \
+        if(out_expr_type != NULL){                                                       \
+            *out_expr_type = ast_type_make_base(strclone(typename));                     \
+        }\
     }
 
     case EXPR_BYTE:
@@ -149,7 +153,10 @@ errorcode_t ir_gen_expr(ir_builder_t *builder, ast_expr_t *expr, ir_value_t **ir
         }
         break;
     case EXPR_NULL:
-        if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("ptr"));
+        if(out_expr_type != NULL){
+            *out_expr_type = ast_type_make_base(strclone("ptr"));
+        }
+
         *ir_value = build_null_pointer(builder->pool);
         break;
     case EXPR_ADD:
@@ -394,23 +401,20 @@ errorcode_t ir_gen_expr_pre_andor(ir_builder_t *builder, ast_expr_math_t *andor_
     
     ast_type_t ast_type_a, ast_type_b;
 
-    // Conform expression 'a' to type 'bool' to ensure 'b' will also have to conform
-    // Use 'out_expr_type' to store bool type (will stay there anyways cause resulting type is a bool)
-    ast_type_make_base(out_expr_type, strclone("bool"));
-
     // Generate value for 'a' expression
     if(ir_gen_expr(builder, andor_expr->a, a, false, &ast_type_a)){
-        ast_type_free(out_expr_type);
         return FAILURE;
     }
 
+    ast_type_t bool_ast_type = ast_type_make_base(strclone("bool"));
+
     // Force 'a' value to be a boolean
-    if(!ast_types_identical(&ast_type_a, out_expr_type) && !ast_types_conform(builder, a, &ast_type_a, out_expr_type, CONFORM_MODE_CALCULATION)){
+    if(!ast_types_identical(&ast_type_a, &bool_ast_type) && !ast_types_conform(builder, a, &ast_type_a, &bool_ast_type, CONFORM_MODE_CALCULATION)){
         char *a_type_str = ast_type_str(&ast_type_a);
         compiler_panicf(builder->compiler, andor_expr->source, "Failed to convert value of type '%s' to type 'bool'", a_type_str);
         free(a_type_str);
         ast_type_free(&ast_type_a);
-        ast_type_free(out_expr_type);
+        ast_type_free(&bool_ast_type);
         return FAILURE;
     }
 
@@ -421,26 +425,32 @@ errorcode_t ir_gen_expr_pre_andor(ir_builder_t *builder, ast_expr_math_t *andor_
     // Generate value for 'b' expression
     if(ir_gen_expr(builder, ((ast_expr_math_t*) andor_expr)->b, b, false, &ast_type_b)){
         ast_type_free(&ast_type_a);
-        ast_type_free(out_expr_type);
+        ast_type_free(&bool_ast_type);
         return FAILURE;
     }
 
     // Force 'b' value to be a boolean
-    if(!ast_types_identical(&ast_type_b, out_expr_type) && !ast_types_conform(builder, b, &ast_type_b, out_expr_type, CONFORM_MODE_CALCULATION)){
+    if(!ast_types_identical(&ast_type_b, &bool_ast_type) && !ast_types_conform(builder, b, &ast_type_b, &bool_ast_type, CONFORM_MODE_CALCULATION)){
         char *b_type_str = ast_type_str(&ast_type_b);
         compiler_panicf(builder->compiler, andor_expr->source, "Failed to convert value of type '%s' to type 'bool'", b_type_str);
         free(b_type_str);
         ast_type_free(&ast_type_a);
         ast_type_free(&ast_type_b);
-        ast_type_free(out_expr_type);
+        ast_type_free(&bool_ast_type);
         return FAILURE;
     }
 
-    // Each parameter will be a boolean
     ast_type_free(&ast_type_a);
     ast_type_free(&ast_type_b);
 
     *landing_b_block_id = builder->current_block_id;
+
+    if(out_expr_type != NULL){
+        *out_expr_type = bool_ast_type;
+    } else {
+        ast_type_free(&bool_ast_type);
+    }
+
     return SUCCESS;
 }
 
@@ -449,7 +459,10 @@ errorcode_t ir_gen_expr_str(ir_builder_t *builder, ast_expr_str_t *expr, ir_valu
     if(*ir_value == NULL) return FAILURE;
     
     // Has type of 'String'
-    if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("String"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base(strclone("String"));
+    }
+
     return SUCCESS;
 }
 
@@ -457,7 +470,10 @@ errorcode_t ir_gen_expr_cstr(ir_builder_t *builder, ast_expr_cstr_t *expr, ir_va
     *ir_value = build_literal_cstr(builder, expr->value);
 
     // Has type of '*ubyte'
-    if(out_expr_type != NULL) ast_type_make_base_ptr(out_expr_type, strclone("ubyte"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base_ptr(strclone("ubyte"));
+    }
+
     return SUCCESS;
 }
 
@@ -467,17 +483,25 @@ errorcode_t ir_gen_expr_variable(ir_builder_t *builder, ast_expr_variable_t *exp
 
     // Found variable in nearby scope
     if(variable){
-        if(out_expr_type != NULL) *out_expr_type = ast_type_clone(variable->ast_type);
-        ir_type_t *ir_ptr_type = ir_type_pointer_to(builder->pool, variable->ir_type);
+        if(out_expr_type != NULL){
+            *out_expr_type = ast_type_clone(variable->ast_type);
+        }
+
+        ir_type_t *ir_ptr_type = ir_type_make_pointer_to(builder->pool, variable->ir_type);
 
         // Variable-Pointer instruction to get pointer to stack variable
         *ir_value = build_varptr(builder, ir_ptr_type, variable);
 
         // Load if the variable is a reference
-        if(variable->traits & BRIDGE_VAR_REFERENCE) *ir_value = build_load(builder, *ir_value, expr->source);
+        if(variable->traits & BRIDGE_VAR_REFERENCE){
+            *ir_value = build_load(builder, *ir_value, expr->source);
+        }
 
         // Unless requested to leave the expression mutable, dereference it
-        if(!leave_mutable) *ir_value = build_load(builder, *ir_value, expr->source);
+        if(!leave_mutable){
+            *ir_value = build_load(builder, *ir_value, expr->source);
+        }
+
         return SUCCESS;
     }
 
@@ -493,7 +517,7 @@ errorcode_t ir_gen_expr_variable(ir_builder_t *builder, ast_expr_variable_t *exp
 
         // DANGEROUS: Using AST global variable index as IR global variable index
         ir_global_t *ir_global = &ir_module->globals[global_variable_index];
-        *ir_value = build_gvarptr(builder, ir_type_pointer_to(builder->pool, ir_global->type), global_variable_index);
+        *ir_value = build_gvarptr(builder, ir_type_make_pointer_to(builder->pool, ir_global->type), global_variable_index);
         
         // If not requested to leave the expression mutable, dereference it
         if(!leave_mutable) *ir_value = build_load(builder, *ir_value, expr->source);
@@ -537,7 +561,7 @@ errorcode_t ir_gen_expr_call(ir_builder_t *builder, ast_expr_call_t *expr, ir_va
     // Found variable of name in nearby scope
     if(is_var_function_like){
         // Get IR type of function from variable
-        tmp_ir_variable_type = ir_type_pointer_to(builder->pool, var->ir_type);
+        tmp_ir_variable_type = ir_type_make_pointer_to(builder->pool, var->ir_type);
 
         if(expr->gives.elements_length != 0){
             compiler_panicf(builder->compiler, expr->source, "Can't specify return type when calling function variable");
@@ -558,7 +582,10 @@ errorcode_t ir_gen_expr_call(ir_builder_t *builder, ast_expr_call_t *expr, ir_va
 
         // The function pointer couldn't be called, but the call is tentative, so we pretend like it didn't happen
         if(error == ALT_FAILURE){
-            if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
+            if(out_expr_type != NULL){
+                *out_expr_type = ast_type_make_base(strclone("void"));
+            }
+
             return SUCCESS;
         }
         
@@ -567,7 +594,7 @@ errorcode_t ir_gen_expr_call(ir_builder_t *builder, ast_expr_call_t *expr, ir_va
     }
 
     // If there doesn't exist a nearby scoped variable with the same name, look for function
-    optional_funcpair_t result;
+    optional_func_pair_t result;
     length_t arg_arity = expr->arity;
     errorcode_t error = ir_gen_find_func_conforming(builder, expr->name, &arg_values, &arg_types, &arg_arity, &expr->gives, expr->no_user_casts, expr->source, &result);
 
@@ -584,43 +611,55 @@ errorcode_t ir_gen_expr_call(ir_builder_t *builder, ast_expr_call_t *expr, ir_va
             instructions_snapshot_restore(builder, &instructions_snapshot);
             ir_pool_snapshot_restore(builder->pool, &pool_snapshot);
 
-            if(expr->is_tentative){
-                if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
-                ast_types_free_fully(arg_types, arg_arity);
-                return SUCCESS;
-            } else {
+            if(!expr->is_tentative){
                 compiler_undeclared_function(builder->compiler, builder->object, expr->source, expr->name, arg_types, expr->arity, &expr->gives, false);
                 ast_types_free_fully(arg_types, arg_arity);
                 return FAILURE;
             }
-        }
 
-        funcpair_t pair = result.value;
+            if(out_expr_type != NULL){
+                *out_expr_type = ast_type_make_base(strclone("void"));
+            }
 
-        // If requires implicit, fail if conforming function isn't marked as implicit
-        if(expr->only_implicit && expr->is_tentative && !(pair.ast_func->traits & AST_FUNC_IMPLICIT)){
-            if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
             ast_types_free_fully(arg_types, arg_arity);
             return SUCCESS;
         }
 
-        if(ensure_not_violating_disallow(builder->compiler, expr->source, pair.ast_func)
-        || ensure_not_violating_no_discard(builder->compiler, expr->no_discard, expr->source, pair.ast_func)){
+        func_pair_t pair = result.value;
+
+        trait_t ast_func_traits;
+        length_t ast_func_arity;
+        trait_t *arg_type_traits;
+        ast_type_t ast_func_return_type;
+
+        {
+            ast_func_t *ast_func = &ast->funcs[pair.ast_func_id];
+            ast_func_traits = ast_func->traits;
+            ast_func_arity = ast_func->arity;
+            arg_type_traits = ast_func->arg_type_traits;
+            ast_func_return_type = ast_func->return_type;
+        }
+
+        // If requires implicit, fail if conforming function isn't marked as implicit
+        if(expr->only_implicit && expr->is_tentative && !(ast_func_traits & AST_FUNC_IMPLICIT)){
+            if(out_expr_type != NULL){
+                *out_expr_type = ast_type_make_base(strclone("void"));
+            }
+
+            ast_types_free_fully(arg_types, arg_arity);
+            return SUCCESS;
+        }
+
+        if(ensure_not_violating_disallow(builder->compiler, expr->source, &ast->funcs[pair.ast_func_id])
+        || ensure_not_violating_no_discard(builder->compiler, expr->no_discard, expr->source, &ast->funcs[pair.ast_func_id])){
             ast_types_free_fully(arg_types, arg_arity);
             return ALT_FAILURE;
         }
 
-        // Revalidate our target function
-        pair.ast_func = &ast->funcs[pair.ast_func_id];
-        
-        if(ir_gen_expr_call_procedure_handle_pass_management(builder, arg_arity, arg_values, arg_types, pair.ast_func->traits, pair.ast_func->arg_type_traits, pair.ast_func->arity)){
+        if(ir_gen_expr_call_procedure_handle_pass_management(builder, arg_arity, arg_values, arg_types, ast_func_traits, arg_type_traits, ast_func_arity)){
             ast_types_free_fully(arg_types, arg_arity);
             return FAILURE;
         }
-
-        // Revalidate 'ast_func' and 'ir_func'
-        pair.ast_func = &ast->funcs[pair.ast_func_id];
-        pair.ir_func = &builder->object->ir_module.funcs.funcs[pair.ir_func_id];
 
         // Prepare for potential stack allocation
         ir_value_t *stack_pointer = NULL;
@@ -638,19 +677,19 @@ errorcode_t ir_gen_expr_call(ir_builder_t *builder, ast_expr_call_t *expr, ir_va
         ast_types_free_fully(arg_types, unpacked_arity);
         
         // Call the actual function and store resulting value from call expression if requested
-        ir_type_t *result_type = pair.ir_func->return_type;
+        ir_type_t *result_type = builder->object->ir_module.funcs.funcs[pair.ir_func_id].return_type;
 
         if(ir_value){
-            *ir_value = build_call(builder, pair.ir_func_id, result_type, arg_values, arg_arity, true);
+            *ir_value = build_call(builder, pair.ir_func_id, result_type, arg_values, arg_arity);
         } else {
-            build_call(builder, pair.ir_func_id, result_type, arg_values, arg_arity, false);
+            build_call_ignore_result(builder, pair.ir_func_id, result_type, arg_values, arg_arity);
         }
 
         // Restore the stack if we allocated memory on it
         if(stack_pointer) build_stack_restore(builder, stack_pointer);
 
         // Give back return type of the called function
-        if(out_expr_type != NULL) *out_expr_type = ast_type_clone(&pair.ast_func->return_type);
+        if(out_expr_type != NULL) *out_expr_type = ast_type_clone(&ast_func_return_type);
         return SUCCESS;
     }
 
@@ -680,7 +719,10 @@ errorcode_t ir_gen_expr_call(ir_builder_t *builder, ast_expr_call_t *expr, ir_va
             // The type of the global variable isn't a function pointer
             // Ignore failure if the call expression is tentative
             if(expr->is_tentative){
-                if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
+                if(out_expr_type != NULL){
+                    *out_expr_type = ast_type_make_base(strclone("void"));
+                }
+
                 ast_types_free_fully(arg_types, arg_arity);
                 return SUCCESS;
             }
@@ -701,12 +743,15 @@ errorcode_t ir_gen_expr_call(ir_builder_t *builder, ast_expr_call_t *expr, ir_va
         errorcode_t error = ir_gen_call_function_value(builder, tmp_ast_variable_type, expr, arg_values, arg_types, ir_value, out_expr_type);
         ast_types_free_fully(arg_types, arg_arity);
 
-        // Propogate failure to call function pointer value
+        // Propagate failure to call function pointer value
         if(error == FAILURE) return FAILURE;
 
         // If calling the function pointer value failed, but the call was tentative, then ignore the failure
         if(error == ALT_FAILURE){
-            if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
+            if(out_expr_type != NULL){
+                *out_expr_type = ast_type_make_base(strclone("void"));
+            }
+
             return SUCCESS;
         }
 
@@ -718,12 +763,15 @@ errorcode_t ir_gen_expr_call(ir_builder_t *builder, ast_expr_call_t *expr, ir_va
 
     // If the call expression was tentative, then ignore the failure
     if(expr->is_tentative){
-        if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
+        if(out_expr_type != NULL){
+            *out_expr_type = ast_type_make_base(strclone("void"));
+        }
+
         ast_types_free_fully(arg_types, arg_arity);
         return SUCCESS;
     }
 
-    // Otherwise, print an error messsage
+    // Otherwise, print an error message
     compiler_undeclared_function(builder->compiler, builder->object, expr->source, expr->name, arg_types, expr->arity, &expr->gives, false);
     ast_types_free_fully(arg_types, arg_arity);
     return FAILURE;
@@ -787,18 +835,25 @@ errorcode_t ir_gen_expr_call_procedure_handle_pass_management(
 }
 
 errorcode_t ir_gen_expr_call_procedure_handle_variadic_packing(ir_builder_t *builder, ir_value_t ***arg_values, ast_type_t *arg_types,
-        length_t *arity, funcpair_t *pair, ir_value_t **stack_pointer, source_t source_on_failure){
-    
-    // Don't pack arguments unless function is variadic
-    if(!(pair->ast_func->traits & AST_FUNC_VARIADIC)) return SUCCESS;
+        length_t *arity, func_pair_t *pair, ir_value_t **stack_pointer, source_t source_on_failure){
 
     // Pack variadic arguments into variadic array if applicable
+    // -----
+    
+    ast_t *ast = &builder->object->ast;
+    trait_t ast_func_traits = ast->funcs[pair->ast_func_id].traits;
+    
+    // Don't pack arguments unless function is variadic
+    if(!(ast_func_traits & AST_FUNC_VARIADIC)) return SUCCESS;
+
+    // Everything after the natural arity of the function will be packed inside the variadic argument list
+    length_t natural_arity = ast->funcs[pair->ast_func_id].arity;
 
     // Calculate number of variadic arguments
-    length_t variadic_count = *arity - pair->ast_func->arity;
+    length_t variadic_count = *arity - natural_arity;
 
     // Do __builtin_warn_bad_printf_format if applicable
-    if(pair->ast_func->traits & AST_FUNC_WARN_BAD_PRINTF_FORMAT
+    if(ast_func_traits & AST_FUNC_WARN_BAD_PRINTF_FORMAT
     && ir_gen_do_builtin_warn_bad_printf_format(builder, *pair, arg_types, *arg_values, source_on_failure, variadic_count)){
         return FAILURE;
     }
@@ -811,8 +866,7 @@ errorcode_t ir_gen_expr_call_procedure_handle_variadic_packing(ir_builder_t *bui
 
     // Obtain IR type of '*AnyType' type if typeinfo is enabled
     if(!(builder->compiler->traits & COMPILER_NO_TYPEINFO)){
-        ast_type_t any_type;
-        ast_type_make_base_ptr(&any_type, strclone("AnyType"));
+        ast_type_t any_type = ast_type_make_base_ptr(strclone("AnyType"));
 
         if(ir_gen_resolve_type(builder->compiler, builder->object, &any_type, &pAnyType_ir_type)){
             ast_type_free(&any_type);
@@ -827,13 +881,13 @@ errorcode_t ir_gen_expr_call_procedure_handle_variadic_packing(ir_builder_t *bui
     ir_value_t *bytes = NULL;
     
     if(variadic_count != 0){
-        bytes = build_const_sizeof(builder->pool, usize_type, (*arg_values)[pair->ast_func->arity]->type);
+        bytes = build_const_sizeof(builder->pool, usize_type, (*arg_values)[natural_arity]->type);
     } else {
         bytes = build_literal_usize(builder->pool, 0);
     }
 
     for(length_t i = 1; i < variadic_count; i++){
-        ir_type_t *ir_type = (*arg_values)[pair->ast_func->arity + i]->type;
+        ir_type_t *ir_type = (*arg_values)[natural_arity + i]->type;
         
         if(ir_type->kind == TYPE_KIND_VOID){
             compiler_panicf(builder->compiler, source_on_failure, "Cannot pass 'void' in variadic arguments");
@@ -856,7 +910,7 @@ errorcode_t ir_gen_expr_call_procedure_handle_variadic_packing(ir_builder_t *bui
         raw_data_array = build_alloc_array(builder, ubyte_type, bytes);
 
         // Bitcast the value fromm '[n] ubyte' type to '*ubyte' type
-        raw_data_array = build_bitcast(builder, raw_data_array, ir_type_pointer_to(builder->pool, ubyte_type));
+        raw_data_array = build_bitcast(builder, raw_data_array, ir_type_make_pointer_to(builder->pool, ubyte_type));
     } else {
         raw_data_array = build_null_pointer(builder->pool);
     }
@@ -866,23 +920,23 @@ errorcode_t ir_gen_expr_call_procedure_handle_variadic_packing(ir_builder_t *bui
 
     for(length_t i = 0; i < variadic_count; i++){
         ir_value_t *arg = build_array_access(builder, raw_data_array, current_offset, source_on_failure);
-        arg = build_bitcast(builder, arg, ir_type_pointer_to(builder->pool, (*arg_values)[pair->ast_func->arity + i]->type));
-        build_store(builder, (*arg_values)[pair->ast_func->arity + i], arg, source_on_failure);
+        arg = build_bitcast(builder, arg, ir_type_make_pointer_to(builder->pool, (*arg_values)[natural_arity + i]->type));
+        build_store(builder, (*arg_values)[natural_arity + i], arg, source_on_failure);
 
         // Move iterative offset 'current_offset' along by the size of the type we just wrote
         if(i + 1 < variadic_count){
-            current_offset = build_const_add(builder->pool, current_offset, build_const_sizeof(builder->pool, usize_type, (*arg_values)[pair->ast_func->arity + i]->type));
+            current_offset = build_const_add(builder->pool, current_offset, build_const_sizeof(builder->pool, usize_type, (*arg_values)[natural_arity + i]->type));
         }
     }
     
     // Create raw types array of '*AnyType' values if runtime type info is enabled
     if(pAnyType_ir_type && variadic_count != 0){
         raw_types_array = build_alloc_array(builder, pAnyType_ir_type, build_literal_usize(builder->pool, variadic_count));
-        raw_types_array = build_bitcast(builder, raw_types_array, ir_type_pointer_to(builder->pool, pAnyType_ir_type));
+        raw_types_array = build_bitcast(builder, raw_types_array, ir_type_make_pointer_to(builder->pool, pAnyType_ir_type));
 
         for(length_t i = 0; i < variadic_count; i++){
             ir_value_t *arg_type = build_array_access(builder, raw_types_array, build_literal_usize(builder->pool, i), source_on_failure);
-            build_store(builder, rtti_for(builder, &arg_types[pair->ast_func->arity + i], source_on_failure), arg_type, source_on_failure);
+            build_store(builder, rtti_for(builder, &arg_types[natural_arity + i], source_on_failure), arg_type, source_on_failure);
         }
     }
     
@@ -902,23 +956,23 @@ errorcode_t ir_gen_expr_call_procedure_handle_variadic_packing(ir_builder_t *bui
     variadic_array_function_arguments[3] = build_bitcast(builder, raw_types_array, builder->ptr_type);
     
     // Create variadic array value using the special function '__variadic_array__'
-    length_t ir_func_id = builder->object->ir_module.common.variadic_ir_func_id;
+    func_id_t ir_func_id = builder->object->ir_module.common.variadic_ir_func_id;
     ir_type_t *result_type = builder->object->ir_module.common.ir_variadic_array;
-    ir_value_t *returned_value = build_call(builder, ir_func_id, result_type, variadic_array_function_arguments, 4, true);
+    ir_value_t *returned_value = build_call(builder, ir_func_id, result_type, variadic_array_function_arguments, 4);
 
     // Make space for variadic array argument
     if(variadic_count == 0){
-        ir_value_t **new_args = ir_pool_alloc(builder->pool, sizeof(ir_value_t*) * (pair->ast_func->arity + 1));
+        ir_value_t **new_args = ir_pool_alloc(builder->pool, sizeof(ir_value_t*) * (natural_arity + 1));
 
         // Copy given argument values into new array
         // NOTE: We are abandoning the old arg_values array
-        memcpy(new_args, *arg_values, sizeof(ir_value_t*) * (pair->ast_func->arity + 1));
+        memcpy(new_args, *arg_values, sizeof(ir_value_t*) * (natural_arity + 1));
         (*arg_values) = new_args;
     }
 
     // Replace argument values after regular arguments with single variadic array argument value
-    (*arg_values)[pair->ast_func->arity] = returned_value;
-    *arity = pair->ast_func->arity + 1;
+    (*arg_values)[natural_arity] = returned_value;
+    *arity = natural_arity + 1;
     return SUCCESS;
 }
 
@@ -967,10 +1021,10 @@ errorcode_t ir_gen_expr_member(ir_builder_t *builder, ast_expr_member_t *expr, i
 
         switch(waypoint.kind){
         case AST_LAYOUT_WAYPOINT_BITCAST:
-            *ir_value = build_bitcast(builder, *ir_value, ir_type_pointer_to(builder->pool, field_type));
+            *ir_value = build_bitcast(builder, *ir_value, ir_type_make_pointer_to(builder->pool, field_type));
             break;
         case AST_LAYOUT_WAYPOINT_OFFSET:
-            *ir_value = build_member(builder, *ir_value, waypoint.index, ir_type_pointer_to(builder->pool, field_type), expr->source);
+            *ir_value = build_member(builder, *ir_value, waypoint.index, ir_type_make_pointer_to(builder->pool, field_type), expr->source);
             break;
         default:
             internalerrorprintf("ir_gen_expr_member() - Unrecognized waypoint kind\n");
@@ -988,7 +1042,7 @@ errorcode_t ir_gen_expr_member(ir_builder_t *builder, ast_expr_member_t *expr, i
         // Because of this, we have to bitcast it to the proper type
         // when we access ir via member access
 
-        *ir_value = build_bitcast(builder, *ir_value, ir_type_pointer_to(builder->pool, field_info.ir_type));
+        *ir_value = build_bitcast(builder, *ir_value, ir_type_make_pointer_to(builder->pool, field_info.ir_type));
     }
 
     if(out_expr_type){
@@ -1049,7 +1103,7 @@ errorcode_t ir_gen_get_field_info(compiler_t *compiler, object_t *object, weak_c
         ast_elem_generic_base_t *generic_base = (ast_elem_generic_base_t*) elem;
 
         weak_cstr_t composite_name = generic_base->name;
-        ast_polymorphic_composite_t *template = ast_polymorphic_composite_find_exact(&object->ast, composite_name);
+        ast_poly_composite_t *template = ast_poly_composite_find_exact(&object->ast, composite_name);
 
         // Find the polymorphic structure
         if(template == NULL){
@@ -1086,7 +1140,7 @@ errorcode_t ir_gen_get_field_info(compiler_t *compiler, object_t *object, weak_c
 
         // Get the AST field type of the target field by index and resolve any polymorphs
         ast_type_t field_type;
-        if(resolve_type_polymorphics(compiler, type_table, &catalog, maybe_polymorphic_field_type, &field_type)){
+        if(ast_resolve_type_polymorphs(compiler, type_table, &catalog, maybe_polymorphic_field_type, &field_type)){
             ast_poly_catalog_free(&catalog);
             return FAILURE;
         }
@@ -1246,26 +1300,30 @@ errorcode_t ir_gen_expr_initlist(ir_builder_t *builder, ast_expr_initlist_t *exp
     }
 
     // Create AST phantom value for memory pointer
-    ast_expr_phantom_t phantom_memory_value;
-    phantom_memory_value.id = EXPR_PHANTOM;
-    phantom_memory_value.ir_value = memory;
-    phantom_memory_value.source = NULL_SOURCE;
-    phantom_memory_value.is_mutable = false;
-    phantom_memory_value.type = master_type;
-    ast_type_prepend_ptr(&phantom_memory_value.type);
+    ast_type_prepend_ptr(&master_type);
+
+    ast_expr_phantom_t phantom_memory_value = (ast_expr_phantom_t){
+        .id = EXPR_PHANTOM,
+        .ir_value = memory,
+        .source = NULL_SOURCE,
+        .is_mutable = false,
+        .type = master_type,
+    };
 
     // Create AST phantom value for memory length
-    ast_expr_phantom_t phantom_length_value;
-    phantom_length_value.id = EXPR_PHANTOM;
-    phantom_length_value.ir_value = build_literal_usize(builder->pool, expr->length);
-    phantom_length_value.source = NULL_SOURCE;
-    phantom_length_value.is_mutable = false;
-    ast_type_make_base(&phantom_length_value.type, strclone("usize"));
+    ast_expr_phantom_t phantom_length_value = (ast_expr_phantom_t){
+        .id = EXPR_PHANTOM,
+        .ir_value = build_literal_usize(builder->pool, expr->length),
+        .source = NULL_SOURCE,
+        .is_mutable = false,
+        .type = ast_type_make_base(strclone("usize")),
+    };
 
     // Setup AST values to call special function
-    ast_expr_t *args[2];
-    args[0] = (ast_expr_t*) &phantom_memory_value;
-    args[1] = (ast_expr_t*) &phantom_length_value;
+    ast_expr_t *args[2] = {
+        (ast_expr_t*) &phantom_memory_value,
+        (ast_expr_t*) &phantom_length_value,
+    };
 
     // DANGEROUS: Using stack-allocated argument expressions,
     // we must reset 'arity' to zero and 'args' to NULL before
@@ -1309,13 +1367,13 @@ errorcode_t ir_gen_expr_initlist(ir_builder_t *builder, ast_expr_initlist_t *exp
 }
 
 errorcode_t ir_gen_expr_func_addr(ir_builder_t *builder, ast_expr_func_addr_t *expr, ir_value_t **ir_value, ast_type_t *out_expr_type){
-    funcpair_t pair;
+    func_pair_t pair;
 
     // No arguments given to match against
     if(expr->has_match_args == false){
         bool is_unique;
 
-        if(ir_gen_find_func_named(builder->object, expr->name, &is_unique, &pair)){
+        if(ir_gen_find_func_named(builder->object, expr->name, &is_unique, &pair, false)){
             // If nothing exists and the lookup is tentative, fail tentatively
             if(expr->tentative) goto fail_tentatively;
 
@@ -1337,7 +1395,7 @@ errorcode_t ir_gen_expr_func_addr(ir_builder_t *builder, ast_expr_func_addr_t *e
     
     // Otherwise we have arguments we can try to match against
     else {
-        optional_funcpair_t result;
+        optional_func_pair_t result;
 
         if(ir_gen_find_func_regular(builder->compiler, builder->object, expr->name, expr->match_args, expr->match_args_length, TRAIT_NONE, TRAIT_NONE, expr->source, &result)
         || !result.has){
@@ -1362,47 +1420,44 @@ errorcode_t ir_gen_expr_func_addr(ir_builder_t *builder, ast_expr_func_addr_t *e
         }
     }
 
-    // Create the IR function pointer type
-    ir_type_extra_function_t *extra = ir_pool_alloc(builder->pool, sizeof(ir_type_extra_function_t));
-    extra->arg_types = pair.ir_func->argument_types;
-    extra->arity = pair.ast_func->arity;
-    extra->traits = expr->traits;
+    ast_t *ast = &builder->object->ast;
+    ir_module_t *module = &builder->object->ir_module;
+    trait_t ast_func_traits = TRAIT_NONE;
 
-    // Force return type of entry point function to be s32
-    if(pair.ast_func->traits & AST_FUNC_MAIN){
-        ir_type_t *i32_type = ir_pool_alloc(builder->pool, sizeof(ir_type_t));
-        i32_type->kind = TYPE_KIND_S32;
-        // (neglect i32_type->extra)
-        extra->return_type = i32_type;
-    } else {
-        extra->return_type = pair.ir_func->return_type;
+    // Create the IR function pointer type
+    ir_type_t *ir_funcptr_type;
+
+    {
+        ast_func_t *ast_func = &ast->funcs[pair.ast_func_id];
+        ir_func_t *ir_func = &module->funcs.funcs[pair.ir_func_id];
+
+        ast_func_traits = ast_func->traits;
+
+        length_t arity = ast_func->arity;
+        ir_type_t **arg_types = ir_func->argument_types;
+        ir_type_t *return_type = ast_func->traits & AST_FUNC_MAIN ? ir_type_make(builder->pool, TYPE_KIND_S32, NULL) : ir_func->return_type;
+
+        ir_funcptr_type = ir_type_make_function_pointer(builder->pool, arg_types, arity, return_type, expr->traits);
     }
 
-    ir_type_t *ir_funcptr_type = ir_pool_alloc(builder->pool, sizeof(ir_type_t));
-    ir_funcptr_type->kind = TYPE_KIND_FUNCPTR;
-    ir_funcptr_type->extra = extra;
-
-    // If the function is only referenced by C-mangled name, remember its name
-    const char *maybe_name = (pair.ast_func->traits & AST_FUNC_FOREIGN || pair.ast_func->traits & AST_FUNC_MAIN) ? expr->name : NULL;
-
-    // Build 'get function address' instruction
-    ir_instr_func_address_t *instruction = (ir_instr_func_address_t*) build_instruction(builder, sizeof(ir_instr_func_address_t));
-    instruction->id = INSTRUCTION_FUNC_ADDRESS;
-    instruction->result_type = ir_funcptr_type;
-    instruction->name = maybe_name;
-    instruction->ir_func_id = pair.ir_func_id;
-    *ir_value = build_value_from_prev_instruction(builder);
+    // If the function is only referenced by C-mangled name, then get its address by it
+    // Otherwise, just get its function address like normal using its IR function id
+    if(ast_func_traits & AST_FUNC_FOREIGN || ast_func_traits & AST_FUNC_MAIN){
+        *ir_value = build_func_addr_by_name(builder->pool, ir_funcptr_type, expr->name);
+    } else {
+        *ir_value = build_func_addr(builder->pool, ir_funcptr_type, pair.ir_func_id);
+    }
 
     // Write resulting type if requested
     if(out_expr_type != NULL){
-        ast_func_t *ast_func = pair.ast_func;
+        ast_func_t *ast_func = &ast->funcs[pair.ast_func_id];
 
         // Force return type of result type of be 'int' if target function is entry point function
         // (e.g. func &main will give back either 'func() int' or 'func(int, **ubyte) int', but never func() void)
         if(ast_func->traits & AST_FUNC_MAIN){
-            ast_type_make_func_ptr(out_expr_type, expr->source, ast_func->arg_types, ast_func->arity, &builder->object->ast.common.ast_int_type, ast_func->traits, false);
+            *out_expr_type = ast_type_make_func_ptr(expr->source, ast_func->arg_types, ast_func->arity, &ast->common.ast_int_type, ast_func->traits, false);
         } else {
-            ast_type_make_func_ptr(out_expr_type, expr->source, ast_func->arg_types, ast_func->arity, &ast_func->return_type, ast_func->traits, false);
+            *out_expr_type = ast_type_make_func_ptr(expr->source, ast_func->arg_types, ast_func->arity, &ast_func->return_type, ast_func->traits, false);
         }
     }
     
@@ -1415,58 +1470,42 @@ fail_tentatively:
     // I'm not sure whether this is the best choice, but it feels right
     // - Isaac (Mar 21 2020)
     *ir_value = build_null_pointer(builder->pool);
-    if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("ptr"));
+
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base(strclone("ptr"));
+    }
+
     return SUCCESS;
 }
-
 
 errorcode_t ir_gen_expr_func_addr_noop_result_for_defer(ir_builder_t *builder, ast_type_t *match_arg, source_t source_on_error, ir_value_t **ir_value, ast_type_t *out_expr_type){
     // NOTE: CLEANUP: Cleanup this code
 
-    funcid_t ir_func_id;
+    func_id_t ir_func_id;
     if(ir_builder_get_noop_defer_func(builder, source_on_error, &ir_func_id)) return FAILURE;
 
     ir_module_t *module = &builder->object->ir_module;
     ir_func_t *ir_func = &module->funcs.funcs[ir_func_id];
 
-    // Create the no-op IR function pointer type
-    ir_type_extra_function_t *noop_extra = ir_pool_alloc(builder->pool, sizeof(ir_type_extra_function_t));
-    noop_extra->arg_types = ir_func->argument_types;
-    noop_extra->arity = 1;
-    noop_extra->traits = TRAIT_NONE;
-    noop_extra->return_type = ir_func->return_type;
+    // Get function pointer type for no-op defer function
+    ir_type_t *ir_noop_funcptr_type = ir_type_make_function_pointer(builder->pool, ir_func->argument_types, 1, ir_func->return_type, TRAIT_NONE);
 
-    ir_type_t *ir_noop_funcptr_type = ir_pool_alloc(builder->pool, sizeof(ir_type_t));
-    ir_noop_funcptr_type->kind = TYPE_KIND_FUNCPTR;
-    ir_noop_funcptr_type->extra = noop_extra;
+    // Resolve argument types
+    ir_type_t **arg_types = ir_pool_alloc(builder->pool, sizeof(ir_type_t));
 
-    // Create the final IR function pointer type
-    ir_type_extra_function_t *final_extra = ir_pool_alloc(builder->pool, sizeof(ir_type_extra_function_t));
-    final_extra->arg_types = ir_pool_alloc(builder->pool, sizeof(ir_type_t));
-
-    if(ir_gen_resolve_type(builder->compiler, builder->object, match_arg, &final_extra->arg_types[0])){
+    if(ir_gen_resolve_type(builder->compiler, builder->object, match_arg, &arg_types[0])){
         return FAILURE;
     }
 
-    final_extra->arity = 1;
-    final_extra->traits = TRAIT_NONE;
-    final_extra->return_type = ir_func->return_type;
+    // Get function pointer type
+    ir_type_t *ir_final_funcptr_type = ir_type_make_function_pointer(builder->pool, arg_types, 1, ir_func->return_type, TRAIT_NONE);
 
-    ir_type_t *ir_final_funcptr_type = ir_pool_alloc(builder->pool, sizeof(ir_type_t));
-    ir_final_funcptr_type->kind = TYPE_KIND_FUNCPTR;
-    ir_final_funcptr_type->extra = final_extra;
-
-    // Create function address instruction
-    ir_instr_func_address_t *instruction = (ir_instr_func_address_t*) build_instruction(builder, sizeof(ir_instr_func_address_t));
-    instruction->id = INSTRUCTION_FUNC_ADDRESS;
-    instruction->result_type = ir_noop_funcptr_type;
-    instruction->name = NULL;
-    instruction->ir_func_id = ir_func_id;
-    *ir_value = build_value_from_prev_instruction(builder);
+    // Get function address
+    *ir_value = build_func_addr(builder->pool, ir_noop_funcptr_type, ir_func_id);
 
     // Cast to proper type
-    *ir_value = build_const_cast(builder->pool, VALUE_TYPE_CONST_BITCAST, *ir_value, module->common.ir_ptr);
-    *ir_value = build_const_cast(builder->pool, VALUE_TYPE_CONST_BITCAST, *ir_value, ir_final_funcptr_type);
+    *ir_value = build_const_bitcast(builder->pool, *ir_value, module->common.ir_ptr);
+    *ir_value = build_const_bitcast(builder->pool, *ir_value, ir_final_funcptr_type);
 
     // Write resulting type if requested
     if(out_expr_type != NULL){
@@ -1474,9 +1513,9 @@ errorcode_t ir_gen_expr_func_addr_noop_result_for_defer(ir_builder_t *builder, a
         args[0] = ast_type_clone(match_arg);
 
         ast_type_t *void_ast_type = malloc(sizeof(ast_type_t));
-        ast_type_make_base(void_ast_type, strclone("void"));
+        *void_ast_type = ast_type_make_base(strclone("void"));
 
-        ast_type_make_func_ptr(out_expr_type, source_on_error, args, 1, void_ast_type, TRAIT_NONE, true);
+        *out_expr_type = ast_type_make_func_ptr(source_on_error, args, 1, void_ast_type, TRAIT_NONE, true);
     }
 
     return SUCCESS;
@@ -1554,7 +1593,7 @@ errorcode_t ir_gen_expr_array_access(ir_builder_t *builder, ast_expr_array_acces
         assert(array_type.elements_length != 0);
         array_type.elements[0]->id = AST_ELEM_POINTER;
 
-        ir_type_t *casted_ir_type = ir_type_pointer_to(builder->pool, ((ir_type_extra_fixed_array_t*) ((ir_type_t*) array_value->type->extra)->extra)->subtype);
+        ir_type_t *casted_ir_type = ir_type_make_pointer_to(builder->pool, ((ir_type_extra_fixed_array_t*) ((ir_type_t*) array_value->type->extra)->extra)->subtype);
         array_value = build_bitcast(builder, array_value, casted_ir_type);
     } else if(((ir_type_t*) array_value->type->extra)->kind == TYPE_KIND_STRUCTURE){
         // Keep structure value mutable
@@ -1656,7 +1695,10 @@ errorcode_t ir_gen_expr_sizeof(ir_builder_t *builder, ast_expr_sizeof_t *expr, i
     *ir_value = build_const_sizeof(builder->pool, ir_builder_usize(builder), of_type);
 
     // Return type is always usize
-    if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("usize"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base(strclone("usize"));
+    }
+
     return SUCCESS;
 }
 
@@ -1671,7 +1713,7 @@ errorcode_t ir_gen_expr_sizeof_value(ir_builder_t *builder, ast_expr_sizeof_valu
     // DANGEROUS: Manually storing state of builder
     length_t basicblocks_length = builder->basicblocks.length;
     length_t current_block_id = builder->current_block_id;
-    length_t insturctions_length = builder->basicblocks.blocks[current_block_id].instructions.length;
+    length_t instructions_length = builder->basicblocks.blocks[current_block_id].instructions.length;
 
     // Generate the expression to get back it's result type
     if(ir_gen_expr(builder, expr->value, NULL, true, &ast_type)) return FAILURE;
@@ -1679,7 +1721,7 @@ errorcode_t ir_gen_expr_sizeof_value(ir_builder_t *builder, ast_expr_sizeof_valu
     // DANGEROUS: Manually restoring state of builder
     builder->basicblocks.length = basicblocks_length;
     build_using_basicblock(builder, builder->current_block_id);
-    builder->basicblocks.blocks[current_block_id].instructions.length = insturctions_length;
+    builder->basicblocks.blocks[current_block_id].instructions.length = instructions_length;
     
     // Restore IR pool from previous snapshot
     ir_pool_snapshot_restore(builder->pool, &snapshot);
@@ -1697,7 +1739,10 @@ errorcode_t ir_gen_expr_sizeof_value(ir_builder_t *builder, ast_expr_sizeof_valu
     *ir_value = build_const_sizeof(builder->pool, ir_builder_usize(builder), of_type);
 
     // Return type is always usize
-    if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("usize"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base(strclone("usize"));
+    }
+
     return SUCCESS;
 }
 
@@ -1765,7 +1810,10 @@ errorcode_t ir_gen_expr_call_method(ir_builder_t *builder, ast_expr_call_method_
         // Otherwise, we don't know how to use the given subject type to call a method
 
         if(expr->is_tentative){
-            if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
+            if(out_expr_type != NULL){
+                *out_expr_type = ast_type_make_base(strclone("void"));
+            }
+
             ast_types_free_fully(arg_types, 1);
             return SUCCESS;
         }
@@ -1792,7 +1840,7 @@ errorcode_t ir_gen_expr_call_method(ir_builder_t *builder, ast_expr_call_method_
     }
 
     // Find the appropriate method to call
-    optional_funcpair_t result;
+    optional_func_pair_t result;
     errorcode_t error = ir_gen_expr_call_method_find_appropriate_method(builder, expr, &arg_values, &arg_types, &arg_arity, &expr->gives, &result);
     
     // If we couldn't find a suitable method, handle the failure
@@ -1801,7 +1849,10 @@ errorcode_t ir_gen_expr_call_method(ir_builder_t *builder, ast_expr_call_method_
         if(error == FAILURE) return FAILURE;
 
         // The method call is tentative, so ignore the failure
-        if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
+        if(out_expr_type != NULL){
+            *out_expr_type = ast_type_make_base(strclone("void"));
+        }
+
         return SUCCESS;
     }
 
@@ -1811,29 +1862,29 @@ errorcode_t ir_gen_expr_call_method(ir_builder_t *builder, ast_expr_call_method_
         ir_pool_snapshot_restore(builder->pool, &pool_snapshot);
         ast_types_free_fully(arg_types, arg_arity);
 
-        if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("void"));
+        if(out_expr_type != NULL){
+            *out_expr_type = ast_type_make_base(strclone("void"));
+        }
+
         return SUCCESS;
     }
 
-    funcpair_t pair = result.value;
+    func_pair_t pair = result.value;
 
-    if(ensure_not_violating_disallow(builder->compiler, expr->source, pair.ast_func)
-    || ensure_not_violating_no_discard(builder->compiler, expr->no_discard, expr->source, pair.ast_func)){
+    if(ensure_not_violating_disallow(builder->compiler, expr->source, &ast->funcs[pair.ast_func_id])
+    || ensure_not_violating_no_discard(builder->compiler, expr->no_discard, expr->source, &ast->funcs[pair.ast_func_id])){
         ast_types_free_fully(arg_types, arg_arity);
         return ALT_FAILURE;
     }
 
-    // Revalidate our target function
-    pair.ast_func = &ast->funcs[pair.ast_func_id];
+    {
+        ast_func_t *ast_func = &ast->funcs[pair.ast_func_id];
 
-    if(ir_gen_expr_call_procedure_handle_pass_management(builder, arg_arity, arg_values, arg_types, pair.ast_func->traits, pair.ast_func->arg_type_traits, pair.ast_func->arity)){
-        ast_types_free_fully(arg_types, arg_arity);
-        return FAILURE;
+        if(ir_gen_expr_call_procedure_handle_pass_management(builder, arg_arity, arg_values, arg_types, ast_func->traits, ast_func->arg_type_traits, ast_func->arity)){
+            ast_types_free_fully(arg_types, arg_arity);
+            return FAILURE;
+        }
     }
-    
-    // Revalidate 'ast_func' and 'ir_func'
-    pair.ast_func = &builder->object->ast.funcs[pair.ast_func_id];
-    pair.ir_func = &builder->object->ir_module.funcs.funcs[pair.ir_func_id];
 
     // Remember arity before variadic argument packing
     length_t unpacked_arity = arg_arity;
@@ -1844,14 +1895,13 @@ errorcode_t ir_gen_expr_call_method(ir_builder_t *builder, ast_expr_call_method_
         return FAILURE;
     }
 
-    // Remember the AST return type of the function
-    ast_type_t *return_type = &pair.ast_func->return_type;
+    ir_type_t *ir_return_type = builder->object->ir_module.funcs.funcs[pair.ir_func_id].return_type;
 
     // Don't even bother with result unless we care about the it
     if(ir_value){
-        *ir_value = build_call(builder, pair.ir_func_id, pair.ir_func->return_type, arg_values, arg_arity, true);
+        *ir_value = build_call(builder, pair.ir_func_id, ir_return_type, arg_values, arg_arity);
     } else {
-        build_call(builder, pair.ir_func_id, pair.ir_func->return_type, arg_values, arg_arity, false);
+        build_call_ignore_result(builder, pair.ir_func_id, ir_return_type, arg_values, arg_arity);
     }
     
     if(used_temporary_subject && !expr->allow_drop){
@@ -1872,12 +1922,15 @@ errorcode_t ir_gen_expr_call_method(ir_builder_t *builder, ast_expr_call_method_
     ast_types_free_fully(arg_types, unpacked_arity);
 
     // Result type is the return type of the method
-    if(out_expr_type != NULL) *out_expr_type = ast_type_clone(return_type);
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_clone(&ast->funcs[pair.ast_func_id].return_type);
+    }
+
     return SUCCESS;
 }
 
 errorcode_t ir_gen_expr_call_method_find_appropriate_method(ir_builder_t *builder, ast_expr_call_method_t *expr, ir_value_t ***arg_values,
-        ast_type_t **arg_types, length_t *arg_arity, ast_type_t *gives, optional_funcpair_t *result){
+        ast_type_t **arg_types, length_t *arg_arity, ast_type_t *gives, optional_func_pair_t *result){
     
     weak_cstr_t subject;
     ast_type_t *subject_type = &(*arg_types)[0];
@@ -1885,8 +1938,7 @@ errorcode_t ir_gen_expr_call_method_find_appropriate_method(ir_builder_t *builde
     // Obtain the name of the subject and find the appropriate method
     if(ast_type_is_pointer_to_base(subject_type)){
         subject = ((ast_elem_base_t*) subject_type->elements[1])->base;
-    }
-    else if(ast_type_is_pointer_to_generic_base(subject_type)){
+    } else if(ast_type_is_pointer_to_generic_base(subject_type)){
         subject = ((ast_elem_generic_base_t*) subject_type->elements[1])->name;
     } else {
         internalerrorprintf("ir_gen_expr_call_method_find_appropriate_method() - Bad subject type\n");
@@ -1895,7 +1947,7 @@ errorcode_t ir_gen_expr_call_method_find_appropriate_method(ir_builder_t *builde
 
     if(ir_gen_find_method_conforming(builder, subject, expr->name, arg_values, arg_types, arg_arity, gives, expr->source, result)){
         if(expr->is_tentative) return ALT_FAILURE;
-        compiler_undeclared_function(builder->compiler, builder->object, expr->source, expr->name, *arg_types, expr->arity, NULL, true);
+        compiler_undeclared_function(builder->compiler, builder->object, expr->source, expr->name, *arg_types, expr->arity + 1, NULL, true);
         return FAILURE;
     }
     
@@ -1924,7 +1976,9 @@ errorcode_t ir_gen_expr_unary(ir_builder_t *builder, ast_expr_unary_t *expr, ir_
         instruction->result_type = ir_builder_bool(builder);
 
         // Result type is bool
-        if(out_expr_type) ast_type_make_base(out_expr_type, strclone("bool"));
+        if(out_expr_type != NULL){
+            *out_expr_type = ast_type_make_base(strclone("bool"));
+        }
     } else {
         // Build '-' or '~'
         instruction->result_type = expr_value->type;
@@ -2032,16 +2086,19 @@ errorcode_t ir_gen_expr_new_cstring(ir_builder_t *builder, ast_expr_new_cstring_
     ir_value_t *cstring_value = build_literal_cstr(builder, expr->value);
 
     // Generate instruction to copy string constant to allocated heap memory
-    ir_instr_memcpy_t *mempcy_instruction = (ir_instr_memcpy_t*) build_instruction(builder, sizeof(ir_instr_memcpy_t));
-    mempcy_instruction->id = INSTRUCTION_MEMCPY;
-    mempcy_instruction->result_type = NULL;
-    mempcy_instruction->destination = *ir_value;
-    mempcy_instruction->value = cstring_value;
-    mempcy_instruction->bytes = bytes_value;
-    mempcy_instruction->is_volatile = false;
+    ir_instr_memcpy_t *memcpy_instruction = (ir_instr_memcpy_t*) build_instruction(builder, sizeof(ir_instr_memcpy_t));
+    memcpy_instruction->id = INSTRUCTION_MEMCPY;
+    memcpy_instruction->result_type = NULL;
+    memcpy_instruction->destination = *ir_value;
+    memcpy_instruction->value = cstring_value;
+    memcpy_instruction->bytes = bytes_value;
+    memcpy_instruction->is_volatile = false;
 
     // Result type is *ubyte
-    if(out_expr_type != NULL) ast_type_make_base_ptr(out_expr_type, strclone("ubyte"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base_ptr(strclone("ubyte"));
+    }
+
     return SUCCESS;
 }
 
@@ -2070,7 +2127,10 @@ errorcode_t ir_gen_expr_enum_value(ir_builder_t *builder, ast_expr_enum_value_t 
     *ir_value = build_literal_usize(builder->pool, enum_kind_id);
 
     // Result type is the enum
-    if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone(expr->enum_name));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base(strclone(expr->enum_name));
+    }
+
     return SUCCESS;
 }
 
@@ -2209,7 +2269,10 @@ errorcode_t ir_gen_expr_typeinfo(ir_builder_t *builder, ast_expr_typeinfo_t *exp
     if(*ir_value == NULL) return FAILURE;
 
     // Result type is *AnyType
-    if(out_expr_type) ast_type_make_base_ptr(out_expr_type, strclone("AnyType"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base_ptr(strclone("AnyType"));
+    }
+
     return SUCCESS;
 }
 
@@ -2259,7 +2322,7 @@ errorcode_t ir_gen_expr_ternary(ir_builder_t *builder, ast_expr_ternary_t *expr,
     // Ensure the resulting types of the two branches is the same
     if(!ast_types_identical(&if_true_type, &if_false_type)){
         // Try to autocast to larger type of the two if there is one
-        bool conflict_resolved = ir_gen_resolve_ternay_conflict(builder, &if_true, &if_false, &if_true_type, &if_false_type, &when_true_landing, &when_false_landing);
+        bool conflict_resolved = ir_gen_resolve_ternary_conflict(builder, &if_true, &if_false, &if_true_type, &if_false_type, &when_true_landing, &when_false_landing);
         
         if(!conflict_resolved){
             char *if_true_typename = ast_type_str(&if_true_type);
@@ -2511,7 +2574,7 @@ errorcode_t ir_gen_expr_inline_declare(ir_builder_t *builder, ast_expr_inline_de
     if(ir_gen_resolve_type(builder->compiler, builder->object, &def->type, &ir_decl_type)) return FAILURE;
 
     // Get IR type of mutable declaration value
-    ir_type_t *var_pointer_type = ir_type_pointer_to(builder->pool, ir_decl_type);
+    ir_type_t *var_pointer_type = ir_type_make_pointer_to(builder->pool, ir_decl_type);
 
     // Determine how to create inline variable, and do so
     if(def->value != NULL){
@@ -2519,43 +2582,16 @@ errorcode_t ir_gen_expr_inline_declare(ir_builder_t *builder, ast_expr_inline_de
 
         // Generate IR value for initial value
         ir_value_t *initial;
-        ast_type_t temporary_type;
-        if(ir_gen_expr(builder, def->value, &initial, false, &temporary_type)) return FAILURE;
-
-        // Conform initial IR value to expected AST type
-        if(!ast_types_conform(builder, &initial, &temporary_type, &def->type, CONFORM_MODE_ASSIGNING)){
-            char *a_type_str = ast_type_str(&temporary_type);
-            char *b_type_str = ast_type_str(&def->type);
-            compiler_panicf(builder->compiler, def->source, "Incompatible types '%s' and '%s'", a_type_str, b_type_str);
-            free(a_type_str);
-            free(b_type_str);
-            ast_type_free(&temporary_type);
-            return FAILURE;
-        }
+        ast_type_t initial_value_ast_type;
+        if(ir_gen_expr(builder, def->value, &initial, false, &initial_value_ast_type)) return FAILURE;
 
         // Add the variable
         ir_value_t *destination = build_lvarptr(builder, var_pointer_type, builder->next_var_id);
         add_variable(builder, def->name, &def->type, ir_decl_type, is_pod ? BRIDGE_VAR_POD : TRAIT_NONE);
 
-        // Assign the initial value to the newly created variable
-        bool used_assign_function;
-
-        if(is_assign_pod){
-            used_assign_function = false;
-        } else {
-            errorcode_t errorcode = handle_assign_management(builder, initial, &temporary_type, destination, &def->type, def->source);
-            if(errorcode == ALT_FAILURE) return errorcode;
-
-            used_assign_function = errorcode == SUCCESS;
-        }
-
-        if(!used_assign_function && ir_gen_perform_pod_assignment(builder, &initial, &temporary_type, destination, &def->type, def->source)){
-            ast_type_free(&temporary_type);
-            return FAILURE;
-        }
-
-        // Dispose of temporary initial value AST type
-        ast_type_free(&temporary_type);
+        errorcode_t errorcode = ir_gen_assign(builder, initial, &initial_value_ast_type, destination, &def->type, is_assign_pod, def->source);
+        ast_type_free(&initial_value_ast_type);
+        if(errorcode != SUCCESS) return errorcode;
 
         // Result is pointer to variable on stack
         *ir_value = destination;
@@ -2597,7 +2633,10 @@ errorcode_t ir_gen_expr_typenameof(ir_builder_t *builder, ast_expr_typenameof_t 
     
     *ir_value = build_literal_cstr_of_length(builder, name, size);
 
-    if(out_expr_type) ast_type_make_base_ptr(out_expr_type, strclone("ubyte"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base_ptr(strclone("ubyte"));
+    }
+
     return SUCCESS;
 }
 
@@ -2613,7 +2652,10 @@ errorcode_t ir_gen_expr_embed(ir_builder_t *builder, ast_expr_embed_t *expr, ir_
     *ir_value = build_literal_str(builder, array, length);
     ir_module_defer_free(&builder->object->ir_module, array);
 
-    if(out_expr_type) ast_type_make_base(out_expr_type, strclone("String"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base(strclone("String"));
+    }
+
     return SUCCESS;
 }
 
@@ -2627,7 +2669,10 @@ errorcode_t ir_gen_expr_alignof(ir_builder_t *builder, ast_expr_alignof_t *expr,
     *ir_value = build_const_alignof(builder->pool, ir_builder_usize(builder), of_type);
 
     // Return type is always usize
-    if(out_expr_type != NULL) ast_type_make_base(out_expr_type, strclone("usize"));
+    if(out_expr_type != NULL){
+        *out_expr_type = ast_type_make_base(strclone("usize"));
+    }
+
     return SUCCESS;
 }
 
@@ -2722,11 +2767,7 @@ errorcode_t ir_gen_expr_math(ir_builder_t *builder, ast_expr_math_t *math_expr, 
 
     // Write the result type, will either be a boolean or the same type as the given arguments
     if(out_expr_type != NULL){
-        if(result_is_boolean){
-            ast_type_make_base(out_expr_type, strclone("bool"));
-        } else {
-            *out_expr_type = ast_type_clone(&ast_type_a);
-        }
+        *out_expr_type = result_is_boolean ? ast_type_make_base(strclone("bool")) : ast_type_clone(&ast_type_a);
     }
 
     ast_type_free(&ast_type_a);
@@ -2735,7 +2776,7 @@ errorcode_t ir_gen_expr_math(ir_builder_t *builder, ast_expr_math_t *math_expr, 
 }
 
 ir_instr_math_t* ir_gen_math_operands(ir_builder_t *builder, ast_expr_math_t *expr, ir_value_t **ir_value, ast_type_t *out_expr_type){
-    // ir_gen the operends of an expression into instructions and gives back an instruction with unknown id
+    // ir_gen the operands of an expression into instructions and gives back an instruction with unknown id
 
     // NOTE: Returns the generated instruction
     // NOTE: The instruction id still must be specified after this call
@@ -2828,19 +2869,14 @@ errorcode_t ir_gen_call_function_value(ir_builder_t *builder, ast_type_t *tmp_as
     // Handle __pass__ management for values that need it
     if(handle_pass_management(builder, arg_values, arg_types, NULL, call->arity)) return FAILURE;
 
-    ir_instr_call_address_t *instruction = (ir_instr_call_address_t*) build_instruction(builder, sizeof(ir_instr_call_address_t));
-    instruction->id = INSTRUCTION_CALL_ADDRESS;
-    instruction->result_type = ir_return_type;
-    instruction->address = *inout_ir_value;
-    instruction->values = arg_values;
-    instruction->values_length = call->arity;
-    *inout_ir_value = build_value_from_prev_instruction(builder);
+    // Generate the actual call address instruction
+    *inout_ir_value = build_call_address(builder, ir_return_type, *inout_ir_value, arg_values, call->arity);
 
     if(out_expr_type != NULL) *out_expr_type = ast_type_clone(function_elem->return_type);
     return SUCCESS;
 }
 
-successful_t ir_gen_resolve_ternay_conflict(ir_builder_t *builder, ir_value_t **a, ir_value_t **b, ast_type_t *a_type, ast_type_t *b_type,
+successful_t ir_gen_resolve_ternary_conflict(ir_builder_t *builder, ir_value_t **a, ir_value_t **b, ast_type_t *a_type, ast_type_t *b_type,
         length_t *inout_a_basicblock, length_t *inout_b_basicblock){
     
     if(!ast_type_is_base(a_type) || !ast_type_is_base(b_type)) return UNSUCCESSFUL;

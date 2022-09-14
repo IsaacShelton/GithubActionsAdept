@@ -45,7 +45,7 @@ static void ir_dump_var_scope_layout(FILE *file, bridge_scope_t *scope){
     }
 }
 
-void ir_dump_function(FILE *file, ir_func_t *function, funcid_t ir_func_id, ir_func_t *all_funcs){
+void ir_dump_function(FILE *file, ir_func_t *function, func_id_t ir_func_id, ir_func_t *all_funcs){
     char mangled_name[32];
     ir_implementation(ir_func_id, 'a', mangled_name);
 
@@ -159,16 +159,6 @@ static void ir_dump_array_access(FILE *file, ir_instr_array_access_t *instructio
     fprintf(file, "arracc %s, %s\n", value_str, index_str);
     free(value_str);
     free(index_str);
-}
-
-static void ir_dump_function_address(FILE *file, ir_instr_func_address_t *instruction){
-    if(instruction->name == NULL){
-        char buffer[32];
-        ir_implementation(instruction->ir_func_id, 0x00, buffer);
-        fprintf(file, "funcaddr 0x%s\n", buffer);
-    } else {
-        fprintf(file, "funcaddr %s\n", instruction->name);
-    }
 }
 
 static void ir_dump_cast_instruction(FILE *file, ir_instr_cast_t *instruction, const char *instr_name){
@@ -445,9 +435,6 @@ void ir_dump_instruction(FILE *file, ir_instr_t *instruction, length_t instr_ind
         break;
     case INSTRUCTION_ARRAY_ACCESS:
         ir_dump_array_access(file, (ir_instr_array_access_t*) instruction);
-        break;
-    case INSTRUCTION_FUNC_ADDRESS:
-        ir_dump_function_address(file, (ir_instr_func_address_t*) instruction);
         break;
     case INSTRUCTION_BITCAST:
         ir_dump_cast_instruction(file, (ir_instr_cast_t*) instruction, "bc");

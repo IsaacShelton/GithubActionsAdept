@@ -13,6 +13,7 @@
 #include "DRVR/compiler.h"
 #include "DRVR/object.h"
 #include "IR/ir.h"
+#include "IR/ir_module.h"
 #include "IR/ir_pool.h"
 #include "IR/ir_type.h"
 #include "IR/ir_value.h"
@@ -23,6 +24,7 @@
 #include "IRGEN/ir_gen_type.h"
 #include "UTIL/builtin_type.h"
 #include "UTIL/ground.h"
+#include "UTIL/string.h"
 #include "UTIL/trait.h"
 
 errorcode_t ir_gen_stmts(ir_builder_t *builder, ast_expr_list_t *stmt_list, bool *out_is_terminated){
@@ -437,7 +439,7 @@ errorcode_t ir_gen_stmts(ir_builder_t *builder, ast_expr_list_t *stmt_list, bool
                 if(for_loop->condition){
                     if(ir_gen_expr(builder, for_loop->condition, &condition_value, false, &temporary_type)) return FAILURE;
                 } else {
-                    ast_type_make_base(&temporary_type, "bool");
+                    temporary_type = ast_type_make_base(strclone("bool"));
                     condition_value = build_bool(builder->pool, true);
                 }
 
@@ -717,7 +719,7 @@ errorcode_t ir_gen_stmt_declare(ir_builder_t *builder, ast_expr_declare_t *stmt)
     bridge_var_t *bridge_variable = add_variable(builder, stmt->name, &stmt->type, ir_type, traits);
 
     ir_value_t *variable = stmt->inputs.has
-        ? build_varptr(builder, ir_type_pointer_to(builder->pool, ir_type), bridge_variable)
+        ? build_varptr(builder, ir_type_make_pointer_to(builder->pool, ir_type), bridge_variable)
         : NULL;
 
     // Initialize variable if applicable
@@ -740,6 +742,7 @@ errorcode_t ir_gen_do_construct(
     ast_expr_list_t *inputs,
     source_t source
 ){
+    object_t *object = builder->object;
     weak_cstr_t struct_name = ast_type_struct_name(struct_ast_type);
 
     ir_pool_snapshot_t pool_snapshot;
@@ -771,7 +774,7 @@ errorcode_t ir_gen_do_construct(
     arg_types[0] = ast_type_clone(struct_ast_type);
     ast_type_prepend_ptr(&arg_types[0]);
 
-    optional_funcpair_t result;
+    optional_func_pair_t result;
     errorcode_t search_errorcode = ir_gen_find_method_conforming(builder, struct_name, "__constructor__", &arg_values, &arg_types, &arity, NULL, source, &result);
 
     if(search_errorcode || !result.has){
@@ -781,7 +784,14 @@ errorcode_t ir_gen_do_construct(
         goto failure;
     }
 
-    build_call(builder, result.value.ir_func_id, result.value.ir_func->return_type, arg_values, arity, false);
+    func_pair_t pair = result.value;
+
+    if(handle_pass_management(builder, arg_values, arg_types, object->ast.funcs[pair.ast_func_id].arg_type_traits, arity)){
+        goto failure;
+    }
+
+    ir_type_t *ir_return_type = object->ir_module.funcs.funcs[pair.ir_func_id].return_type;
+    build_call_ignore_result(builder, pair.ir_func_id, ir_return_type, arg_values, arity);
 
     ast_types_free(arg_types, arity);
     free(arg_types);
@@ -814,7 +824,7 @@ errorcode_t ir_gen_stmt_declare_try_init(ir_builder_t *primary_builder, ast_expr
         bridge_scope_init(working_builder->scope, NULL);
     }
 
-    ir_type_t *ir_type_ptr = ir_type_pointer_to(primary_builder->pool, ir_type);
+    ir_type_t *ir_type_ptr = ir_type_make_pointer_to(primary_builder->pool, ir_type);
 
     // Get pointer to where the variable is on the stack
     ir_value_t *destination;
@@ -840,24 +850,9 @@ errorcode_t ir_gen_stmt_declare_try_init(ir_builder_t *primary_builder, ast_expr
         // Generate instructions to get initial value
         if(ir_gen_expr(working_builder, stmt->value, &initial, false, &initial_ast_type)) goto failure;
 
-        // Assign the initial value to the newly created variable
-        bool used_assign_function;
-
-        if(is_assign_pod){
-            used_assign_function = false;
-        } else {
-            errorcode_t errorcode = handle_assign_management(working_builder, initial, &initial_ast_type, destination, &stmt->type, stmt->source);
-            if(errorcode == ALT_FAILURE) return errorcode;
-
-            used_assign_function = errorcode == SUCCESS;
-        }
-
-        if(!used_assign_function && ir_gen_perform_pod_assignment(working_builder, &initial, &initial_ast_type, destination, &stmt->type, stmt->source)){
-            ast_type_free(&initial_ast_type);
-            goto failure;
-        }
-
+        errorcode_t errorcode = ir_gen_assign(working_builder, initial, &initial_ast_type, destination, &stmt->type, is_assign_pod, stmt->source);
         ast_type_free(&initial_ast_type);
+        if(errorcode != SUCCESS) goto failure;
     }
 
     // Destroy allocated scope if we used a secondary builder
@@ -895,34 +890,18 @@ errorcode_t ir_gen_stmt_assignment_like(ir_builder_t *builder, ast_expr_assign_t
 
     // Regular Assignment
     if(assignment_kind == EXPR_ASSIGN){
-        bool used_assign_function;
-    
-        if(stmt->is_pod){
-            used_assign_function = false;
-        } else {
-            errorcode_t errorcode = handle_assign_management(builder, other_value, &other_value_type, destination, &destination_type, stmt->source);
-            if(errorcode == ALT_FAILURE) return errorcode;
-    
-            used_assign_function = errorcode == SUCCESS;
-        }
-
-        if(!used_assign_function && ir_gen_perform_pod_assignment(builder, &other_value, &other_value_type, destination, &destination_type, stmt->source)){
-            ast_type_free(&destination_type);
-            ast_type_free(&other_value_type);
-            return FAILURE;
-        }
-
+        errorcode_t errorcode = ir_gen_assign(builder, other_value, &other_value_type, destination, &destination_type, stmt->is_pod, stmt->source);
         ast_type_free(&destination_type);
         ast_type_free(&other_value_type);
-        return SUCCESS;
+        return errorcode;
     } else {
         // We only have to manually conform other type if doing POD operations,
         // and since as of now, non-POD assignment arithmetic isn't supported,
         // all non-regular assignments will be POD
 
         if(!ast_types_conform(builder, &other_value, &other_value_type, &destination_type, CONFORM_MODE_CALCULATION)){
-            char *a_type_str = ast_type_str(&other_value_type);
-            char *b_type_str = ast_type_str(&destination_type);
+            strong_cstr_t a_type_str = ast_type_str(&other_value_type);
+            strong_cstr_t b_type_str = ast_type_str(&destination_type);
             compiler_panicf(builder->compiler, stmt->source, "Incompatible types '%s' and '%s'", a_type_str, b_type_str);
             free(a_type_str);
             free(b_type_str);
@@ -1394,7 +1373,7 @@ errorcode_t ir_gen_stmt_each(ir_builder_t *builder, ast_expr_each_in_t *stmt){
     // Set 'idx' to initial value of zero
     build_store(builder, build_literal_usize(builder->pool, 0), idx_ptr, stmt->source);
 
-    length_t prep_basicblock_id = -1;
+    length_t prep_basicblock_id = (length_t) -1; // garbage value
 
     if(!stmt->is_static){
         prep_basicblock_id = build_basicblock(builder);
@@ -1447,7 +1426,7 @@ errorcode_t ir_gen_stmt_each(ir_builder_t *builder, ast_expr_each_in_t *stmt){
             if(ir_gen_resolve_type(builder->compiler, builder->object, &remaining_type, &item_ir_type))
                 goto failure;
 
-            fixed_array_value = build_bitcast(builder, single_value, ir_type_pointer_to(builder->pool, item_ir_type));
+            fixed_array_value = build_bitcast(builder, single_value, ir_type_make_pointer_to(builder->pool, item_ir_type));
 
             // Get array length from the type signature of the fixed array
             // NOTE: Assumes element->id == AST_ELEM_FIXED_ARRAY because of earlier 'ast_type_is_fixed_array' call should've verified
@@ -1660,7 +1639,7 @@ failure:
 }
 
 errorcode_t ir_gen_stmt_repeat(ir_builder_t *builder, ast_expr_repeat_t *stmt){
-    length_t prep_basicblock_id = -1;
+    length_t prep_basicblock_id = (length_t) -1; // garbage value
     length_t new_basicblock_id  = build_basicblock(builder);
     length_t inc_basicblock_id  = build_basicblock(builder);
     length_t end_basicblock_id  = build_basicblock(builder);
@@ -1836,7 +1815,18 @@ errorcode_t ir_gen_variable_deference(ir_builder_t *builder, bridge_scope_t *up_
     return SUCCESS;
 }
 
-errorcode_t ir_gen_perform_pod_assignment(ir_builder_t *builder, ir_value_t **value, ast_type_t *value_ast_type,
+errorcode_t ir_gen_assign(ir_builder_t *builder, ir_value_t *value, ast_type_t *value_ast_type, ir_value_t *destination, ast_type_t *destination_type, bool force_pod_assignment, source_t source){
+    // User defined assignment
+    if(!force_pod_assignment){
+        errorcode_t errorcode = try_user_defined_assign(builder, value, value_ast_type, destination, destination_type, source);
+        if(errorcode == ALT_FAILURE || errorcode == SUCCESS) return errorcode;
+    }
+
+    // Regular POD Assignment
+    return ir_gen_assign_pod(builder, &value, value_ast_type, destination, destination_type, source);
+}
+
+errorcode_t ir_gen_assign_pod(ir_builder_t *builder, ir_value_t **value, ast_type_t *value_ast_type,
         ir_value_t *destination, ast_type_t *destination_ast_type, source_t source_on_error){
     // When doing normal assignment (which is POD), ensure the new value is of the same type
 

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "AST/POLY/ast_resolve.h"
 #include "AST/TYPE/ast_type_identical.h"
 #include "AST/ast.h"
 #include "AST/ast_expr.h"
@@ -20,6 +21,7 @@
 #include "IR/ir_value.h"
 #include "IRGEN/ir_builder.h"
 #include "IRGEN/ir_gen_expr.h"
+#include "IRGEN/ir_gen_polymorphable.h"
 #include "IRGEN/ir_gen_type.h"
 #include "UTIL/builtin_type.h"
 #include "UTIL/color.h"
@@ -36,9 +38,8 @@ errorcode_t ir_gen_type_mappings(compiler_t *compiler, object_t *object){
     // byte, ubyte, short, ushort, int, uint, long, ulong, half, float, double, bool, ptr, usize, successful, void
     #define IR_GEN_BASE_TYPE_MAPPINGS_COUNT 16
 
-    ir_type_map_t *type_map = &module->type_map;
-    type_map->mappings_length = ast->composites_length + ast->enums_length + IR_GEN_BASE_TYPE_MAPPINGS_COUNT;
-    ir_type_mapping_t *mappings = malloc(sizeof(ir_type_mapping_t) * type_map->mappings_length);
+    length_t mappings_length = ast->composites_length + ast->enums_length + IR_GEN_BASE_TYPE_MAPPINGS_COUNT;
+    ir_type_mapping_t *mappings = malloc(sizeof(ir_type_mapping_t) * mappings_length);
 
     mappings[0].name = "byte";
     mappings[0].type.kind = TYPE_KIND_S8;
@@ -75,7 +76,7 @@ errorcode_t ir_gen_type_mappings(compiler_t *compiler, object_t *object){
     mappings[15].type.kind = TYPE_KIND_VOID;
 
     length_t beginning_of_composites = IR_GEN_BASE_TYPE_MAPPINGS_COUNT;
-    length_t beginning_of_enums = type_map->mappings_length - ast->enums_length;
+    length_t beginning_of_enums = mappings_length - ast->enums_length;
 
     for(length_t i = beginning_of_composites; i != beginning_of_enums; i++){
         // Create skeletons for composite type maps
@@ -88,23 +89,27 @@ errorcode_t ir_gen_type_mappings(compiler_t *compiler, object_t *object){
         mappings[i].type.extra = composite;
     }
 
-    for(length_t i = beginning_of_enums; i != type_map->mappings_length; i++){
+    for(length_t i = beginning_of_enums; i != mappings_length; i++){
         ast_enum_t *enum_definition = &ast->enums[i - beginning_of_enums];
         mappings[i].name = enum_definition->name;
         mappings[i].type.kind = TYPE_KIND_U64;
     }
 
-    qsort(mappings, type_map->mappings_length, sizeof(ir_type_mapping_t), ir_type_mapping_cmp);
-    type_map->mappings = mappings;
+    qsort(mappings, mappings_length, sizeof(ir_type_mapping_t), ir_type_mapping_cmp);
+
+    module->type_map = (ir_type_map_t){
+        .mappings = mappings,
+        .mappings_length = mappings_length,
+    };
 
     // EXPERIMENTAL: Make sure each identifier is unique
-    for(length_t i = 1; i < type_map->mappings_length; i++){
+    for(length_t i = 1; i < mappings_length; i++){
         if(streq(mappings[i - 1].name, mappings[i].name)){
             // ERROR: Multiple types with the same name
             weak_cstr_t name = mappings[i].name;
             object_panicf_plain(object, "Multiple definitions of type '%s'", name);
 
-            // Find every struct with that name
+            // Find every composite with that name
             for(length_t s = 0; s != ast->composites_length; s++){
                 if(streq(ast->composites[s].name, name))
                     compiler_panic(compiler, ast->composites[s].source, "Here");
@@ -120,7 +125,7 @@ errorcode_t ir_gen_type_mappings(compiler_t *compiler, object_t *object){
         }
     }
 
-    for(length_t i = 0; i != type_map->mappings_length; i++){
+    for(length_t i = 0; i != mappings_length; i++){
         // Fill in bodies for struct/composite type maps
         if(mappings[i].type.kind != TYPE_KIND_STRUCTURE) continue;
 
@@ -188,31 +193,30 @@ errorcode_t ir_gen_resolve_type(compiler_t *compiler, object_t *object, const as
         break;
     case AST_ELEM_FUNC: {
             ast_elem_func_t *function = (ast_elem_func_t*) unresolved_type->elements[non_concrete_layers];
-            ir_type_extra_function_t *extra = ir_pool_alloc(&ir_module->pool, sizeof(ir_type_extra_function_t));
 
-            *resolved_type = ir_pool_alloc(&ir_module->pool, sizeof(ir_type_t));
-            (*resolved_type)->kind = TYPE_KIND_FUNCPTR;
-            (*resolved_type)->extra = extra;
-
-            extra->traits = TRAIT_NONE;
-            if(function->traits & AST_FUNC_VARARG)  extra->traits |= TYPE_KIND_FUNC_VARARG;
-            if(function->traits & AST_FUNC_STDCALL) extra->traits |= TYPE_KIND_FUNC_STDCALL;
-
-            extra->arity = function->arity;
-            extra->arg_types = ir_pool_alloc(&ir_module->pool, sizeof(ir_type_t*) * extra->arity);
+            trait_t type_kind_func_traits = ast_func_traits_to_type_kind_func_traits(function->traits);
+            ir_type_t **arg_types = ir_pool_alloc(&ir_module->pool, sizeof(ir_type_t*) * function->arity);
 
             for(length_t a = 0; a != function->arity; a++){
-                if(ir_gen_resolve_type(compiler, object, &function->arg_types[a], &extra->arg_types[a])) return FAILURE;
+                if(ir_gen_resolve_type(compiler, object, &function->arg_types[a], &arg_types[a])) return FAILURE;
+            }
+            
+            ir_type_t *return_type = NULL;
+
+            if(function->return_type != NULL){
+                if(ir_gen_resolve_type(compiler, object, function->return_type, &return_type)) return FAILURE;
+            } else {
+                return_type = ir_type_make(&ir_module->pool, TYPE_KIND_VOID, NULL);
             }
 
-            if(ir_gen_resolve_type(compiler, object, function->return_type, &extra->return_type)) return FAILURE;
+            *resolved_type = ir_type_make_function_pointer(&ir_module->pool, arg_types, function->arity, return_type, type_kind_func_traits);
         }
         break;
     case AST_ELEM_GENERIC_BASE: {
             ast_elem_generic_base_t *generic_base = (ast_elem_generic_base_t*) unresolved_type->elements[non_concrete_layers];
 
             // Find polymorphic structure
-            ast_polymorphic_composite_t *template = ast_polymorphic_composite_find_exact(&object->ast, generic_base->name);
+            ast_poly_composite_t *template = ast_poly_composite_find_exact(&object->ast, generic_base->name);
 
             if(template == NULL){
                 compiler_panicf(compiler, generic_base->source, "Undeclared polymorphic type '%s'", generic_base->name);
@@ -248,7 +252,7 @@ errorcode_t ir_gen_resolve_type(compiler_t *compiler, object_t *object, const as
         break;
     case AST_ELEM_POLYCOUNT: {
             ast_elem_polycount_t *polycount = (ast_elem_polycount_t*) unresolved_type->elements[non_concrete_layers];
-            compiler_panicf(compiler, unresolved_type->source, "Undetermined polycount '$#%s' in type", polycount->name);
+            compiler_panicf(compiler, polycount->source, "Undetermined polycount '$#%s' in type", polycount->name);
             return FAILURE;
         }
         break;
@@ -260,10 +264,19 @@ errorcode_t ir_gen_resolve_type(compiler_t *compiler, object_t *object, const as
             if(*resolved_type == NULL) return FAILURE;
         }
         break;
+    case AST_ELEM_POLYMORPH:
+    case AST_ELEM_POLYMORPH_PREREQ: {
+            ast_elem_polymorph_t *polymorph = (ast_elem_polymorph_t*) unresolved_type->elements[non_concrete_layers];
+            strong_cstr_t typename = ast_type_str(unresolved_type);
+            compiler_panicf(compiler, unresolved_type->source, "Encountered undetermined polymorphic type '$%s' in type '%s'", polymorph->name, typename);
+            free(typename);
+            return FAILURE;
+        }
+        break;
     default: {
-            char *unresolved_str_rep = ast_type_str(unresolved_type);
-            compiler_panicf(compiler, unresolved_type->source, "INTERNAL ERROR: Unknown type element id in type '%s'", unresolved_str_rep);
-            free(unresolved_str_rep);
+            strong_cstr_t unresolved_typename = ast_type_str(unresolved_type);
+            compiler_panicf(compiler, unresolved_type->source, "INTERNAL ERROR: Unknown type element id in type '%s'", unresolved_typename);
+            free(unresolved_typename);
             return FAILURE;
         }
     }
@@ -586,18 +599,37 @@ successful_t ast_types_conform(ir_builder_t *builder, ir_value_t **ir_value, ast
 
     if(ast_types_identical(ast_from_type, ast_to_type)) return true;
 
+    // Handle automatic class pointer casts
+    if((mode & CONFORM_MODE_CLASS_POINTERS) && ast_type_is_pointer_to_base_like(ast_from_type) && ast_type_is_pointer_to_base_like(ast_to_type)){
+        ast_type_t potential_child = ast_type_dereferenced_view(ast_from_type);
+        ast_type_t potential_parent = ast_type_dereferenced_view(ast_to_type);
+
+        ast_poly_catalog_t catalog;
+        ast_poly_catalog_init(&catalog);
+        bool does_extend = ir_gen_does_extend(builder->compiler, builder->object, &potential_child, &potential_parent, &catalog);
+        ast_poly_catalog_free(&catalog);
+
+        if(does_extend){
+            if(ir_gen_resolve_type(builder->compiler, builder->object, ast_to_type, &ir_to_type)) return false;
+
+            *ir_value = build_bitcast(builder, *ir_value, ir_to_type);
+            return true;
+        }
+    }
+
     // Worst case scenario, we try to use user-defined __as__ method
     if((mode & CONFORM_MODE_USER_IMPLICIT || mode & CONFORM_MODE_USER_EXPLICIT)){
         bool can_do = (ast_type_is_base_like(ast_from_type) || ast_type_is_fixed_array(ast_from_type)) &&
                       (ast_type_is_base_like(ast_to_type) || ast_type_is_fixed_array(ast_to_type));
 
         if(can_do){
-            ast_expr_phantom_t phantom_value;
-            phantom_value.id = EXPR_PHANTOM;
-            phantom_value.ir_value = *ir_value;
-            phantom_value.source = NULL_SOURCE;
-            phantom_value.is_mutable = false;
-            phantom_value.type = ast_type_clone(ast_from_type);
+            ast_expr_phantom_t phantom_value = {
+                .id = EXPR_PHANTOM,
+                .ir_value = *ir_value,
+                .source = NULL_SOURCE,
+                .is_mutable = false,
+                .type = ast_type_clone(ast_from_type),
+            };
 
             ast_expr_t *args = (ast_expr_t*) &phantom_value;
 
@@ -616,7 +648,7 @@ successful_t ast_types_conform(ir_builder_t *builder, ir_value_t **ir_value, ast
             // aren't allowed for this particular cast
             as_call.only_implicit = !(mode & CONFORM_MODE_USER_EXPLICIT);
             as_call.no_user_casts = true;
-
+            
             ir_value_t *converted;
             ast_type_t temporary_type;
             errorcode_t error = ir_gen_expr(builder, (ast_expr_t*) &as_call, &converted, false, &temporary_type);
@@ -626,7 +658,7 @@ successful_t ast_types_conform(ir_builder_t *builder, ir_value_t **ir_value, ast
             as_call.arity = 0;
             as_call.gives.elements_length = 0;
             ast_expr_free((ast_expr_t*) &as_call);
-            
+
             ast_type_free(&phantom_value.type);
 
             // Ensure tentative call was successful
@@ -685,7 +717,7 @@ ir_type_t *ast_layout_bone_to_ir_type(compiler_t *compiler, object_t *object, as
         if(optional_catalog){
             ast_type_t resolved_ast_type;
 
-            if(resolve_type_polymorphics(compiler, object->ast.type_table, optional_catalog, &bone->type, &resolved_ast_type)){
+            if(ast_resolve_type_polymorphs(compiler, object->ast.type_table, optional_catalog, &bone->type, &resolved_ast_type)){
                 return NULL;
             }
 

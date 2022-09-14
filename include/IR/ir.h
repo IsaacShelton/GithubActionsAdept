@@ -76,7 +76,6 @@ enum {
     INSTRUCTION_FLESSEREQ,       // ir_instr_math_t
     INSTRUCTION_MEMBER,         
     INSTRUCTION_ARRAY_ACCESS,   
-    INSTRUCTION_FUNC_ADDRESS,    // ir_instr_cast_t
     INSTRUCTION_BITCAST,         // ir_instr_cast_t
     INSTRUCTION_ZEXT,            // ir_instr_cast_t
     INSTRUCTION_SEXT,            // ir_instr_cast_t
@@ -122,20 +121,6 @@ enum {
     INSTRUCTION_UNREACHABLE,     // ir_instr_t
 };
 
-// ---------------- ir_type_mapping_t ----------------
-// Mapping for a name to an IR type
-typedef struct {
-    weak_cstr_t name;
-    ir_type_t type;
-} ir_type_mapping_t;
-
-// ---------------- ir_type_map_t ----------------
-// A list of mappings from names to IR types
-typedef struct {
-    ir_type_mapping_t *mappings;
-    length_t mappings_length;
-} ir_type_map_t;
-
 // ---------------- ir_instr_t ----------------
 // General structure for intermediate
 // representation instructions
@@ -178,7 +163,7 @@ typedef struct {
 typedef struct {
     unsigned int id;
     ir_type_t *result_type;
-    funcid_t ir_func_id;
+    func_id_t ir_func_id;
     ir_value_t **values;
     length_t values_length;
 } ir_instr_call_t;
@@ -294,16 +279,6 @@ typedef struct {
     int maybe_column_number;
 } ir_instr_array_access_t;
 
-// ---------------- ir_instr_func_address_t ----------------
-// An IR instruction for getting the address of a function
-// ('name' is only used for foreign implementations)
-typedef struct {
-    unsigned int id;
-    ir_type_t *result_type;
-    const char *name;
-    funcid_t ir_func_id;
-} ir_instr_func_address_t;
-
 // ---------------- ir_instr_cast_t ----------------
 // An IR instruction for casting values to different types
 // (used for: _BITCAST, _ZEXT, _TRUC, _FEXT, _FTRUC etc.)
@@ -400,6 +375,8 @@ typedef struct {
     ir_value_t *src_value;
 } ir_instr_va_copy_t;
 
+// ---------------- ir_instr_asm_t ----------------
+// An IR instruction for inline assembly
 typedef struct {
     unsigned int id;
     ir_type_t *result_type;
@@ -427,6 +404,51 @@ typedef struct {
 // A list of basicblocks
 typedef listof(ir_basicblock_t, blocks) ir_basicblocks_t;
 void ir_basicblocks_free(ir_basicblocks_t *basicblocks);
+
+// ---------------- ir_vtable_init_t ----------------
+// Used to keep track of store instructions that will
+// need their value field filled in with a vtable value
+// which will be generated later during IR generation
+typedef struct {
+    ir_instr_store_t *store_instr;
+    ast_type_t subject_type;
+} ir_vtable_init_t;
+
+// ---------------- ir_vtable_init_free ----------------
+// Frees a vtable initialization
+void ir_vtable_init_free(ir_vtable_init_t *vtable_init);
+
+// ---------------- ir_vtable_init_list_t ----------------
+// A list of required vtable initializations
+typedef listof(ir_vtable_init_t, initializations) ir_vtable_init_list_t;
+
+// ---------------- ir_vtable_init_list_append ----------------
+// Appends a vtable initialization to a vtable initialization list
+#define ir_vtable_init_list_append(LIST, VALUE) list_append((LIST), (VALUE), ir_vtable_init_t)
+
+// ---------------- ir_vtable_init_list_free ----------------
+// Frees the vtable initializations in a vtable initialization list
+// and then the list itself
+void ir_vtable_init_list_free(ir_vtable_init_list_t *vtable_init_list);
+
+// ---------------- ir_vtable_dispatch_t ----------------
+// Used to keep track of where vtable index injection will be required
+typedef struct {
+    func_id_t ast_func_id;
+    ir_value_t *index_value;
+} ir_vtable_dispatch_t;
+
+// ---------------- ir_vtable_dispatch_list_t ----------------
+// A list of required vtable dispatches
+typedef listof(ir_vtable_dispatch_t, dispatches) ir_vtable_dispatch_list_t;
+
+// ---------------- ir_vtable_dispatch_list_append ----------------
+// Appends a vtable dispatch to a vtable dispatch list
+#define ir_vtable_dispatch_list_append(LIST, VALUE) list_append((LIST), (VALUE), ir_vtable_dispatch_t)
+
+// ---------------- ir_vtable_dispatch_list_free ----------------
+// Frees a vtable dispatch list
+#define ir_vtable_dispatch_list_free(LIST) free((LIST)->dispatches)
 
 // ---------------- ir_func_t ----------------
 // An intermediate representation function
@@ -504,10 +526,10 @@ typedef struct {
     length_t rtti_array_index;
     troolean has_rtti_array;
     ir_type_t *ir_variadic_array;         // NOTE: Can be NULL
-    funcid_t variadic_ir_func_id;         // NOTE: Only exists if 'ir_variadic_array' isn't null
+    func_id_t variadic_ir_func_id;         // NOTE: Only exists if 'ir_variadic_array' isn't null
     bool has_main;
-    funcid_t ast_main_id;
-    funcid_t ir_main_id;
+    func_id_t ast_main_id;
+    func_id_t ir_main_id;
 } ir_shared_common_t;
 
 // ---------------- ir_static_variable_t ----------------
@@ -544,53 +566,20 @@ typedef listof(ir_anon_global_t, globals) ir_anon_globals_t;
 typedef listof(ir_func_t, funcs) ir_funcs_t;
 #define ir_funcs_append(LIST, VALUE) list_append((LIST), (VALUE), ir_func_t)
 
-// ---------------- ir_module_t ----------------
-// An intermediate representation module
-typedef struct {
-    ir_shared_common_t common;
-    ir_pool_t pool;
-    ir_type_map_t type_map;
-    ir_funcs_t funcs;
-    ir_proc_map_t func_map;
-    ir_proc_map_t method_map;
-    ir_global_t *globals;
-    length_t globals_length;
-    ir_anon_globals_t anon_globals;
-    ir_gen_sf_cache_t sf_cache;
-    rtti_relocations_t rtti_relocations;
-    struct ir_builder *init_builder;
-    struct ir_builder *deinit_builder;
-    ir_static_variables_t static_variables;
-    ir_job_list_t job_list;
-    free_list_t defer_free;
-} ir_module_t;
-
-// ---------------- ir_type_map_find ----------------
-// Finds a type inside an IR type map by name
-successful_t ir_type_map_find(ir_type_map_t *type_map, char *name, ir_type_t **type_ptr);
-
 // ---------------- ir_basicblock_new_instructions ----------------
 // Ensures that there is enough room for 'amount' more instructions
 void ir_basicblock_new_instructions(ir_basicblock_t *block, length_t amount);
-
-// ---------------- ir_module_free ----------------
-// Initializes an IR module for use
-void ir_module_init(ir_module_t *ir_module, length_t funcs_length, length_t globals_length, length_t number_of_function_names_guess);
-
-// ---------------- ir_module_free ----------------
-// Frees data within an IR module
-void ir_module_free(ir_module_t *ir_module);
 
 // ---------------- ir_basicblock_free ----------------
 // Frees an IR basicblock
 void ir_basicblock_free(ir_basicblock_t *basicblock);
 
-// ---------------- ir_module_free_funcs ----------------
-// Frees data within each IR function in a list
-void ir_module_free_funcs(ir_funcs_t funcs);
+// ---------------- ir_funcs_free ----------------
+// Frees a list of IR functions
+void ir_funcs_free(ir_funcs_t funcs);
 
 // ---------------- ir_implementation_setup ----------------
-// Preprares for calls to ir_implementation()
+// Prepares for calls to ir_implementation()
 void ir_implementation_setup();
 
 // ---------------- ir_implementation ----------------
@@ -614,14 +603,6 @@ void ir_print_value(ir_value_t *value);
 // Prints a type to stdout
 void ir_print_type(ir_type_t *type);
 
-// ---------------- ir_module_create_func_mapping ----------------
-// Creates a new function mapping
-void ir_module_create_func_mapping(ir_module_t *module, weak_cstr_t function_name, ir_func_endpoint_t endpoint, bool add_to_job_list);
-
-// ---------------- ir_module_create_method_mapping ----------------
-// Create a new method mapping
-void ir_module_create_method_mapping(ir_module_t *module, weak_cstr_t struct_name, weak_cstr_t method_name, ir_func_endpoint_t endpoint);
-
 // ---------------- ir_job_list_append ----------------
 // Appends a mapping to an IR job list
 #define ir_job_list_append(LIST, VALUE) list_append((LIST), (VALUE), ir_func_endpoint_t)
@@ -629,12 +610,6 @@ void ir_module_create_method_mapping(ir_module_t *module, weak_cstr_t struct_nam
 // ---------------- ir_job_list_free ----------------
 // Frees an IR job list
 void ir_job_list_free(ir_job_list_t *job_list);
-
-// ---------------- ir_module_defer_free ----------------
-// Schedules a heap allocation to be deallocated
-// when an IR module is destroyed.
-// Can be used to preserve data that an IR module weakly references
-void ir_module_defer_free(ir_module_t *module, void *pointer);
 
 #ifdef __cplusplus
 }
