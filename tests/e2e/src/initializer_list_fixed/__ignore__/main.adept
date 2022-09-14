@@ -1,0 +1,13 @@
+
+import 'sys/cstdio.adept'
+
+func getValues 9 long {
+    values 9 long
+    repeat static 9, values[idx] = idx as long
+    return values
+}
+
+func main {
+    values 9 long = getValues()
+    repeat static 9, printf('%c\n', 'A'ub + values[idx] as ubyte)
+}

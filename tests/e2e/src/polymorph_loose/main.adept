@@ -1,0 +1,54 @@
+
+import 'sys/cstdio.adept'
+
+record <$T> Container (value $T)
+
+class Thing () {
+    constructor(value int) {
+
+    }
+}
+
+func main {
+    // Valid!
+    // Should print `float and double`
+    testLoosePolymorphism(10.0f, 10.0)
+
+    // Valid!
+    // Should print `float and float`
+    testNoLoosePolymorphism(10.0f, 10.0)
+    
+    // Valid!
+    // Should print `<float> Container and <double> Container`
+    testLoosePolymorphismInContainer(Container(10.0f), Container(10.0))
+    
+    // Not allowed!
+    // Since we marked this call as tentative, the compiler will ignore the "no suitable function exists" error and ignore this call
+    // (testNoLoosePolymorphismInContainer expects two <$T> Container values and $T must be CONSISTENT)
+    testNoLoosePolymorphismInContainer?(Container(10.0f), Container(10.0))
+}
+
+func testLoosePolymorphism(a $T, b $~T) {
+    // 'b' is allowed to be of any type that is trivially convertible to the type of 'a'
+    printGottenTypes(a, b)
+}
+
+func testNoLoosePolymorphism(a $T, b $T) {
+    // 'b' must be the same type as 'a'
+    printGottenTypes(a, b)
+}
+
+func testLoosePolymorphismInContainer(a <$T> Container, b <$~T> Container) {
+    // $~T may be any type that is trivally convertible to $T
+    // This DOES NOT mean however that <$~T> Container must be convertible to <$T> Container
+    printGottenTypes(a, b)
+}
+
+func testNoLoosePolymorphismInContainer(a <$T> Container, b <$T> Container) {
+    // 'b' must be the same type as 'a'
+    printGottenTypes(a, b)
+}
+
+func printGottenTypes(_a $A, _b $B) {
+    printf('%s and %s\n', typenameof $A, typenameof $B)
+}

@@ -1,0 +1,28 @@
+
+import basics
+import 'sys/cstdio.adept'
+
+record <$T> Box (value $T)
+
+struct PODAssignable ()
+
+struct Assignable () {
+    func __assign__(_ POD Assignable) {}
+}
+
+struct AutogenAssignable (value Assignable)
+
+struct NotAssignable () {
+    func __assign__(_ POD NotAssignable) = delete
+}
+
+func main {
+    // Error only happens with PODAssignable,
+    // since it does not have an __assign__ override
+    // when trying to automaticaly generate an __assign__
+    // method for <PODAssignable> Box.
+    x, y <PODAssignable> Box
+    // x, y PODAssignable
+    x.__assign__(__pass__(y))
+    printf('Done!\n')
+}
