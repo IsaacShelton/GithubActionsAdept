@@ -126,7 +126,6 @@ jobs:
           files: build
           outPath: build-${{ matrix.os }}.tar.gz
       - name: Archive E2E Infrastructure
-        if: ${{ matrix.os != 'windows-latest' }}
         uses: a7ul/tar-action@v1.1.0
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
