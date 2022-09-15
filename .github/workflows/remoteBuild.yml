@@ -104,6 +104,7 @@ jobs:
           del C:\msys64\usr\lib\libz.dll.a
       - name: Configure (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
+        shell: bash
         run: |
           ls ${{github.workspace}}/llvm/build/bin/
           ${{github.workspace}}/llvm/build/bin/llvm-config --link-static --libs
@@ -112,6 +113,7 @@ jobs:
           LLVM_DIR: ${{github.workspace}}/llvm/build
       - name: Configure (Unix)
         if: ${{ matrix.os != 'windows-latest' }}
+        shell: bash
         run: |
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
