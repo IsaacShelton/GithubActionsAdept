@@ -152,7 +152,6 @@ add_custom_target(
 
 if(ADEPT_LINK_LLVM_STATIC)
 	message(STATUS "Linking against LLVM statically")
-	message(STATUS "${LLVM_LIBRARY_DIRS}/../bin/llvm-config")
 	execute_process(COMMAND ${LLVM_LIBRARY_DIRS}/../bin/llvm-config --link-static --libs OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE llvm_static_libs)
 	message(STATUS "Using static libraries: ${llvm_static_libs}")
 	target_link_libraries(adept ${CURL_LIBRARIES} ${llvm_static_libs} ${extra_libs})
