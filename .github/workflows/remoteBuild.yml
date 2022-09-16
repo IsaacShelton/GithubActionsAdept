@@ -107,7 +107,7 @@ jobs:
         shell: bash
         run: |
           ls ${{github.workspace}}/llvm/build/bin/
-          ls ${{github.workspace}}\llvm\build\bin\llvm-config
+          ls ${{github.workspace}}/llvm/build/bin/llvm-config
           ${{github.workspace}}/llvm/build/bin/llvm-config --link-static --libs
           ${{github.workspace}}/llvm/build/bin/llvm-config --help
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=${{github.workspace}}/libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DCMAKE_LIBRARY_PATH=C:\msys64\usr\lib -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
