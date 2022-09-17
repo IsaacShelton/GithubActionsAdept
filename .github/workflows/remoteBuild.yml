@@ -54,6 +54,9 @@ jobs:
         run: |
           export CC=x86_64-w64-mingw32-gcc
           export CXX=x86_64-w64-mingw32-g++
+          export CFLAGS="-static -static-libgcc -static-libstdc++"
+          export CXXFLAGS="-static -static-libgcc -static-libstdc++"
+          export LDFLAGS="-static -static-libgcc -static-libstdc++"
           export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin:$PATH
       # For some god-forsaken reason, the LLVM developers are allergic to releasing
       # prebuilt binaries for major platforms. Sometimes they just decide to skip
@@ -198,6 +201,9 @@ jobs:
         shell: bash
         run: |
           export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin:$PATH 
+          ls build/
+          ls build/tests/
+          ls build/tests/unit/
           build/tests/unit/UnitTestRunner
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
