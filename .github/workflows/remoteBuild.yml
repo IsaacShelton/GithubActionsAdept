@@ -201,9 +201,7 @@ jobs:
         shell: bash
         run: |
           export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin:$PATH 
-          ls build/
-          ls build/tests/
-          ls build/tests/unit/
+          chmod +x build/tests/unit/UnitTestRunner
           build/tests/unit/UnitTestRunner
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
