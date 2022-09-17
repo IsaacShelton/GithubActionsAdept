@@ -54,7 +54,7 @@ jobs:
         run: |
           export CC=x86_64-w64-mingw32-gcc
           export CXX=x86_64-w64-mingw32-g++
-          export LDFLAGS=-static -static-libgcc -static-libstdc++
+          export LDFLAGS="-static -static-libgcc -static-libstdc++"
       # For some god-forsaken reason, the LLVM developers are allergic to releasing
       # prebuilt binaries for major platforms. Sometimes they just decide to skip
       # a platform for a version or more. Sometimes they decide to only publish 
