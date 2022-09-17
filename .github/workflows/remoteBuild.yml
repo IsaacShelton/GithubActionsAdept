@@ -107,7 +107,7 @@ jobs:
         run: |
           pushd ${{github.workspace}}\llvm\build\bin\
           ls
-          llvm-config
+          .\llvm-config
           popd
           ${{github.workspace}}\llvm\build\bin\llvm-config.exe --link-static --libs
           ${{github.workspace}}\llvm\build\bin\llvm-config.exe --help
