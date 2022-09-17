@@ -106,7 +106,6 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           pushd ${{github.workspace}}\llvm\build\bin\
-          dir llvm-config.exe
           llvm-config.exe
           popd
           ${{github.workspace}}\llvm\build\bin\llvm-config.exe --link-static --libs
@@ -121,8 +120,15 @@ jobs:
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
       - name: Build
+        if: ${{ matrix.os != 'windows-latest' }}
         run: |
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      - name: Upload llvm-config Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          name: llvm-config.exe
+          path: ${{github.workspace}}\llvm\build\bin\llvm-config.exe
       - name: Archive Build Result
         uses: a7ul/tar-action@v1.1.0
         with:
