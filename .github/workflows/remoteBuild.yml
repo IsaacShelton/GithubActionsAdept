@@ -202,6 +202,7 @@ jobs:
         shell: bash
         run: |
           ls C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin
+          ls build/tests/unit
           export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin:$PATH 
           build/tests/unit/UnitTestRunner.exe
       - name: Unit Test (Unix)
