@@ -54,6 +54,7 @@ jobs:
         run: |
           export CC=x86_64-w64-mingw32-gcc
           export CXX=x86_64-w64-mingw32-g++
+          export LDFLAGS=-static -static-libgcc -static-libstdc++
       # For some god-forsaken reason, the LLVM developers are allergic to releasing
       # prebuilt binaries for major platforms. Sometimes they just decide to skip
       # a platform for a version or more. Sometimes they decide to only publish 
@@ -65,7 +66,7 @@ jobs:
         id: llvm
         with:
           path: ${{github.workspace}}/llvm
-          key: ${{runner.os}}-cache-llvm-14.0.6-${{ matrix.os }}-${{ hashFiles('llvm/**/*.txt') }}
+          key: ${{runner.os}}-cache2-llvm-14.0.6-${{ matrix.os }}-${{ hashFiles('llvm/**/*.txt') }}
       - name: Download LLVM Source Code 
         shell: bash
         if: steps.llvm.outputs.cache-hit != 'true'
@@ -105,12 +106,6 @@ jobs:
       - name: Configure (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          pushd ${{github.workspace}}\llvm\build\bin\
-          ls
-          .\llvm-config
-          popd
-          ${{github.workspace}}\llvm\build\bin\llvm-config.exe --link-static --libs
-          ${{github.workspace}}\llvm\build\bin\llvm-config.exe --help
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=${{github.workspace}}/libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DCMAKE_LIBRARY_PATH=C:\msys64\usr\lib -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
@@ -124,12 +119,6 @@ jobs:
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
-      - name: Upload llvm-config Artifact
-        uses: actions/upload-artifact@v3
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          name: llvm-config.exe
-          path: ${{github.workspace}}\llvm\build\bin\llvm-config.exe
       - name: Archive Build Result
         uses: a7ul/tar-action@v1.1.0
         with:
