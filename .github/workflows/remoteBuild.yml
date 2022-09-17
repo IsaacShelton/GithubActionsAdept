@@ -106,7 +106,6 @@ jobs:
       - name: Configure (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          ${{github.workspace}}/llvm/build/bin/llvm-config --link-static --libs
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=${{github.workspace}}/libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DCMAKE_LIBRARY_PATH=C:\msys64\usr\lib -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
@@ -164,12 +163,12 @@ jobs:
         with:
           name: LICENSE
           path: LICENSE
-      # - name: Upload llvm-config Artifact
-      #   uses: actions/upload-artifact@v3
-      #   if: ${{ matrix.os == 'ubuntu-latest' }}
-      #   with:
-      #     name: llvm-config.exe
-      #     path: ${{github.workspace}}/llvm/build/bin/llvm-config.exe
+      - name: Upload llvm-config Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          name: llvm-config.exe
+          path: ${{github.workspace}}/llvm/build/bin/llvm-config.exe
   test:
     needs: build
     runs-on: ${{ matrix.os }}
