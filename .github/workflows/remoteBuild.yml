@@ -54,6 +54,7 @@ jobs:
         run: |
           export CC=x86_64-w64-mingw32-gcc
           export CXX=x86_64-w64-mingw32-g++
+          export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin:$PATH
       # For some god-forsaken reason, the LLVM developers are allergic to releasing
       # prebuilt binaries for major platforms. Sometimes they just decide to skip
       # a platform for a version or more. Sometimes they decide to only publish 
@@ -195,7 +196,9 @@ jobs:
           files: build-${{ matrix.os }}.tar.gz
       - name: Unit Test
         shell: bash
-        run: build/tests/unit/UnitTestRunner
+        run: |
+          export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin:$PATH 
+          build/tests/unit/UnitTestRunner
       - name: E2E Test
         working-directory: ${{github.workspace}}/e2e
         run: python3 e2e-runner.py ../build/adept
