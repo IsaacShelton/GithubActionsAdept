@@ -107,7 +107,9 @@ jobs:
       - name: Configure (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
+          echo "Before"
           ${{github.workspace}}\llvm\build\bin\llvm-config
+          echo "After"
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=${{github.workspace}}/libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DCMAKE_LIBRARY_PATH=C:\msys64\usr\lib -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
@@ -118,7 +120,6 @@ jobs:
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
       - name: Build
-        if: ${{ matrix.os != 'windows-latest' }}
         run: |
           cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
       - name: Archive Build Result
@@ -171,6 +172,24 @@ jobs:
         with:
           name: llvm-config.exe
           path: ${{github.workspace}}/llvm/build/bin/llvm-config.exe
+      - name: Upload libgcc_s_seh-1.dll Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          name: llvm-config.exe
+          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/libexec/gcc/x86_64-w64-mingw32/11.2.0/libgcc_s_seh-1.dll
+      - name: Upload libstdc++-6.dll Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          name: llvm-config.exe
+          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/libexec/gcc/x86_64-w64-mingw32/11.2.0/libstdc++-6.dll
+      - name: Upload libwinpthread-1.dll Artifact
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          name: llvm-config.exe
+          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/libexec/gcc/x86_64-w64-mingw32/11.2.0/libwinpthread-1.dll
   test:
     needs: build
     runs-on: ${{ matrix.os }}
