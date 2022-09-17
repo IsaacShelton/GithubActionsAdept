@@ -203,8 +203,9 @@ jobs:
         run: |
           ls C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin
           ls build/tests/unit
+          chmod +x build/tests/unit/UnitTestRunner
           export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin:$PATH 
-          build/tests/unit/UnitTestRunner.exe
+          build/tests/unit/UnitTestRunner
       - name: Unit Test (Unix)
         shell: bash
         if: ${{ matrix.os != 'windows-latest' }}
