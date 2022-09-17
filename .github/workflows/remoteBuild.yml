@@ -54,8 +54,6 @@ jobs:
         run: |
           export CC=x86_64-w64-mingw32-gcc
           export CXX=x86_64-w64-mingw32-g++
-          export LDFLAGS="-static -static-libgcc -static-libstdc++"
-          export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin:$PATH
       # For some god-forsaken reason, the LLVM developers are allergic to releasing
       # prebuilt binaries for major platforms. Sometimes they just decide to skip
       # a platform for a version or more. Sometimes they decide to only publish 
@@ -108,10 +106,6 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           $env:Path = "C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin;$env:Path"
-          echo "Before"
-          echo $env:Path
-          ${{github.workspace}}\llvm\build\bin\llvm-config
-          echo "After"
           cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=${{github.workspace}}/libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DCMAKE_LIBRARY_PATH=C:\msys64\usr\lib -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
@@ -168,30 +162,6 @@ jobs:
         with:
           name: LICENSE
           path: LICENSE
-      - name: Upload llvm-config Artifact
-        uses: actions/upload-artifact@v3
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          name: llvm-config.exe
-          path: ${{github.workspace}}/llvm/build/bin/llvm-config.exe
-      - name: Upload libgcc_s_seh-1.dll Artifact
-        uses: actions/upload-artifact@v3
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          name: libgcc_s_seh-1.dll
-          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin/libgcc_s_seh-1.dll
-      - name: Upload libstdc++-6.dll Artifact
-        uses: actions/upload-artifact@v3
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          name: libstdc++-6.dll
-          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin/libstdc++-6.dll
-      - name: Upload libwinpthread-1.dll Artifact
-        uses: actions/upload-artifact@v3
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          name: libwinpthread-1.dll
-          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin/libwinpthread-1.dll
   test:
     needs: build
     runs-on: ${{ matrix.os }}
