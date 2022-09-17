@@ -55,7 +55,7 @@ jobs:
           export CC=x86_64-w64-mingw32-gcc
           export CXX=x86_64-w64-mingw32-g++
           export LDFLAGS="-static -static-libgcc -static-libstdc++"
-          export PATH=C:/ProgramData/chocolatey/lib/mingw64/tools/install/bin:$PATH
+          export PATH=C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin/:$PATH
       # For some god-forsaken reason, the LLVM developers are allergic to releasing
       # prebuilt binaries for major platforms. Sometimes they just decide to skip
       # a platform for a version or more. Sometimes they decide to only publish 
@@ -178,19 +178,19 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         with:
           name: libgcc_s_seh-1.dll
-          path: C:/ProgramData/chocolatey/lib/mingw64/tools/install/bin/libgcc_s_seh-1.dll
+          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin/libgcc_s_seh-1.dll
       - name: Upload libstdc++-6.dll Artifact
         uses: actions/upload-artifact@v3
         if: ${{ matrix.os == 'windows-latest' }}
         with:
           name: libstdc++-6.dll
-          path: C:/ProgramData/chocolatey/lib/mingw64/tools/install/bin/libstdc++-6.dll
+          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin/libstdc++-6.dll
       - name: Upload libwinpthread-1.dll Artifact
         uses: actions/upload-artifact@v3
         if: ${{ matrix.os == 'windows-latest' }}
         with:
           name: libwinpthread-1.dll
-          path: C:/ProgramData/chocolatey/lib/mingw64/tools/install/bin/libwinpthread-1.dll
+          path: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin/libwinpthread-1.dll
   test:
     needs: build
     runs-on: ${{ matrix.os }}
