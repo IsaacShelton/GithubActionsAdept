@@ -143,7 +143,7 @@ jobs:
           command: c
           files: res
           outPath: res.tar.gz
-      - name: Archive MinGW Support Binaries (in case for manual MinGW binaries upgrade)
+      - name: Archive MinGW Support Binaries (Windows) (in case for manual MinGW binaries upgrade)
         uses: a7ul/tar-action@v1.1.0
         if: ${{ matrix.os == 'windows-latest' }}
         with:
@@ -173,7 +173,7 @@ jobs:
         with:
           name: LICENSE
           path: LICENSE
-      - name: Upload MinGW Support Binaries
+      - name: Upload MinGW Support Binaries (Windows)
         uses: actions/upload-artifact@v3
         if: ${{ matrix.os == 'windows-latest' }}
         with:
