@@ -143,6 +143,13 @@ jobs:
           command: c
           files: res
           outPath: res.tar.gz
+      - name: Archive MinGW Support Binaries (in case for manual MinGW binaries upgrade)
+        uses: a7ul/tar-action@v1.1.0
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: c
+          files: C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin
+          outPath: mingw64-binary-files.tar.gz
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -166,6 +173,12 @@ jobs:
         with:
           name: LICENSE
           path: LICENSE
+      - name: Upload MinGW Support Binaries
+        uses: actions/upload-artifact@v3
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          name: mingw64-binary-files
+          path: mingw64-binary-files.tar.gz
   test:
     needs: build
     runs-on: ${{ matrix.os }}
