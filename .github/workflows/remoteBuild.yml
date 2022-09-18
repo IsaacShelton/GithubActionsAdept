@@ -69,7 +69,7 @@ jobs:
         id: llvm
         with:
           path: ${{github.workspace}}/llvm
-          key: ${{runner.os}}-cache2-llvm-14.0.6-${{ matrix.os }}-${{ hashFiles('llvm/**/*.txt') }}
+          key: ${{runner.os}}-cache3-llvm-14.0.6-${{ matrix.os }}-${{ hashFiles('llvm/**/*.txt') }}
       - name: Download LLVM Source Code 
         shell: bash
         if: steps.llvm.outputs.cache-hit != 'true'
@@ -110,13 +110,13 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           $env:Path = "C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin;$env:Path"
-          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=${{github.workspace}}/libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DCMAKE_LIBRARY_PATH=C:\msys64\usr\lib -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DLLVM_ENABLE_ASSERTIONS=On -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DCURL_LIBRARY=curl -DCURL_LIBRARY_DIRS=${{github.workspace}}/libcurl/lib -DCURL_INCLUDE_DIR=libcurl/include -DCMAKE_LIBRARY_PATH=C:\msys64\usr\lib -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
       - name: Configure (Unix)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
-          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
+          cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DLLVM_ENABLE_ASSERTIONS=On -DCMAKE_PREFIX_PATH=${{github.workspace}}/llvm/build -DADEPT_LINK_LLVM_STATIC=On -B ${{github.workspace}}/build -G Ninja
         env:
           LLVM_DIR: ${{github.workspace}}/llvm/build
       - name: Build
