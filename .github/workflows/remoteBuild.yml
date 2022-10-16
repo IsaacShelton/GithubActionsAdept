@@ -58,8 +58,7 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         shell: powershell
         run: |
-          $p = [Environment]::GetEnvironmentVariable("PATH", [EnvironmentVariableTarget]::Machine);
-          [Environment]::SetEnvironmentVariable("PATH", $p + ";C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin", [EnvironmentVariableTarget]::Machine);
+          $env:Path = "C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin;$env:Path"
       - name: Utilize cached LLVM if available
         uses: actions/cache@v2
         id: llvm
@@ -210,8 +209,7 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         shell: powershell
         run: |
-          $p = [Environment]::GetEnvironmentVariable("PATH", [EnvironmentVariableTarget]::Machine);
-          [Environment]::SetEnvironmentVariable("PATH", $p + ";C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin", [EnvironmentVariableTarget]::Machine);
+          $env:Path = "C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin;$env:Path"
       - name: Unit Test
         shell: bash
         run: build/tests/unit/UnitTestRunner
